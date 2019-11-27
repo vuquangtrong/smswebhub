@@ -1,7 +1,9 @@
 package com.trongvq.smswebhub.data;
 
+import android.Manifest;
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.CountDownTimer;
@@ -9,9 +11,11 @@ import android.os.Handler;
 import android.os.Looper;
 import android.os.ResultReceiver;
 import android.telephony.SmsManager;
+import android.telephony.SubscriptionInfo;
 import android.telephony.SubscriptionManager;
 import android.telephony.TelephonyManager;
 import android.util.Log;
+import android.widget.Toast;
 
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
@@ -32,6 +36,7 @@ import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
@@ -449,12 +454,29 @@ public class DataHandler {
     // SMS SEND //
     private void sendSMS(final String from, final String number, final String content) {
         if (number != null && content != null) {
-            if (from != null && from.equals("sim2")) {
-                Log.d(TAG, "not implemented");
-            } else { /* by default, mobile uses SIM 1 */
-                SmsManager smsManager = SmsManager.getDefault();
-                smsManager.sendTextMessage(number, null, content, null, null);
+            if (appContext.checkSelfPermission(Manifest.permission.READ_PHONE_STATE) != PackageManager.PERMISSION_GRANTED) {
+                Toast.makeText(appContext, "Permission is not granted! Only use default SIM", Toast.LENGTH_LONG).show();
+            } else {
+                SubscriptionManager localSubscriptionManager = SubscriptionManager.from(appContext);
+                if (localSubscriptionManager.getActiveSubscriptionInfoCount() > 1) {
+                    /* if there are 2 SIM available */
+
+                    List<SubscriptionInfo> localList = localSubscriptionManager.getActiveSubscriptionInfoList();
+                    SubscriptionInfo simInfo1 = localList.get(0);
+                    SubscriptionInfo simInfo2 = localList.get(1);
+
+                    if (from != null && from.equals("sim2")) {
+                        SmsManager.getSmsManagerForSubscriptionId(simInfo2.getSubscriptionId()).sendTextMessage(number, null, content, null, null);
+                    } else {
+                        SmsManager.getSmsManagerForSubscriptionId(simInfo1.getSubscriptionId()).sendTextMessage(number, null, content, null, null);
+                    }
+                    return;
+                }
             }
+
+            /* send by default sim */
+            SmsManager smsManager = SmsManager.getDefault();
+            smsManager.sendTextMessage(number, null, content, null, null);
         }
     }
 
@@ -581,7 +603,29 @@ public class DataHandler {
                     // Now the real reflection magic happens
                     if (handleUssdRequest != null) {
                         handleUssdRequest.setAccessible(true);
-                        handleUssdRequest.invoke(iTelephony, SubscriptionManager.getDefaultSubscriptionId(), ussdCode, resultReceiver);
+
+                        if (appContext.checkSelfPermission(Manifest.permission.READ_PHONE_STATE) != PackageManager.PERMISSION_GRANTED) {
+                            Toast.makeText(appContext, "Permission is not granted! Only use default SIM", Toast.LENGTH_LONG).show();
+                            /* request on default SIM */
+                            handleUssdRequest.invoke(iTelephony, SubscriptionManager.getDefaultSubscriptionId(), ussdCode, resultReceiver);
+                        } else {
+                            SubscriptionManager localSubscriptionManager = SubscriptionManager.from(appContext);
+                            if (localSubscriptionManager.getActiveSubscriptionInfoCount() > 1) {
+                                /* if there are 2 SIM available */
+                                List<SubscriptionInfo> localList = localSubscriptionManager.getActiveSubscriptionInfoList();
+                                SubscriptionInfo simInfo1 = localList.get(0);
+                                SubscriptionInfo simInfo2 = localList.get(1);
+
+                                if (from != null && from.equals("sim2")) {
+                                    handleUssdRequest.invoke(iTelephony, simInfo1.getSubscriptionId(), ussdCode, resultReceiver);
+                                } else {
+                                    handleUssdRequest.invoke(iTelephony, simInfo2.getSubscriptionId(), ussdCode, resultReceiver);
+                                }
+                            } else {
+                                /* request on default SIM */
+                                handleUssdRequest.invoke(iTelephony, SubscriptionManager.getDefaultSubscriptionId(), ussdCode, resultReceiver);
+                            }
+                        }
                     }
                 }
             }

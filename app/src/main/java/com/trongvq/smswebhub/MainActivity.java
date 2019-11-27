@@ -27,6 +27,7 @@ public class MainActivity extends AppCompatActivity implements EasyPermissions.P
     private static final int REQUEST_CODE_SETTINGS = 0x00FD;
     private final String[] wantedPermissions = {
             Manifest.permission.RECEIVE_BOOT_COMPLETED,
+            Manifest.permission.READ_PHONE_STATE,
             Manifest.permission.CALL_PHONE,
             Manifest.permission.SEND_SMS,
             Manifest.permission.RECEIVE_SMS,
