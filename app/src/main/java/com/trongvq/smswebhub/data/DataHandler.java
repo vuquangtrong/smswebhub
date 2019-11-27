@@ -75,6 +75,10 @@ public class DataHandler {
         loadData();
     }
 
+    public Context getAppContext() {
+        return appContext;
+    }
+
     private void loadData() {
         Log.d(TAG, "load saved settings");
         loadWebHubURL();
@@ -89,6 +93,34 @@ public class DataHandler {
     // SHARED PREFERENCE //
     private SharedPreferences sharedPref = null;
     private static final String PREF = "pref_smswebhub_";
+
+    // SERVICE STATUS //
+    private boolean isServiceStarted = false;
+
+    public void setServiceStarted(boolean status) {
+        isServiceStarted = status;
+        if (isServiceStarted) {
+            setTextServerStatus(appContext.getString(R.string.stop_service));
+            setTextWebHubStatus("Service started!");
+        } else {
+            setTextServerStatus(appContext.getString(R.string.start_service));
+            setTextWebHubStatus("Service stopped!");
+        }
+    }
+
+    public boolean isServiceStarted() {
+        return isServiceStarted;
+    }
+
+    private final MutableLiveData<String> textServerStatus = new MutableLiveData<>();
+
+    public LiveData<String> getTextServerStatus() {
+        return textServerStatus;
+    }
+
+    private void setTextServerStatus(String text) {
+        textServerStatus.postValue(text);
+    }
 
     // WEB HUB URL //
     private static final String PREF_WEB_HUB_URL = PREF + "webhub_url";
@@ -124,7 +156,7 @@ public class DataHandler {
 
     // WEB HUB SOCKET //
     private WebSocketClient wsClient = null;
-    private final CountDownTimer wsRetryTimer = new CountDownTimer(30000, 1000) {
+    private final CountDownTimer wsRetryTimer = new CountDownTimer(10000, 1000) {
         @Override
         public void onTick(long l) {
             setTextWebHubStatus("Connecting in " + (int) (l / 1000) + "s ...");
@@ -138,7 +170,7 @@ public class DataHandler {
     };
 
     public void connectWebHub() {
-        String url = DataHandler.getInstance().getWebHubURL();
+        String url = getWebHubURL();
 
         URI uri;
         try {
@@ -151,6 +183,7 @@ public class DataHandler {
         if (wsClient != null) {
             if (wsClient.isOpen()) {
                 Log.d(TAG, "already connected to " + url);
+                setTextWebHubStatus("Connected!");
                 return;
             }
             if (wsClient.isClosed()) {
@@ -166,8 +199,26 @@ public class DataHandler {
             @Override
             public void onOpen(ServerHandshake handshakedata) {
                 Log.d(TAG, handshakedata.toString());
+                String numbers = "hello";
 
-                DataHandler.getInstance().setTextWebHubStatus("Connected!");
+                try {
+                    if (appContext.checkSelfPermission(Manifest.permission.READ_PHONE_STATE) != PackageManager.PERMISSION_GRANTED) {
+                        Toast.makeText(appContext, "Permission is not granted! Only use default SIM", Toast.LENGTH_LONG).show();
+                    } else {
+                        numbers += " from ";
+
+                        SubscriptionManager localSubscriptionManager = SubscriptionManager.from(appContext);
+                        List<SubscriptionInfo> simcards = localSubscriptionManager.getActiveSubscriptionInfoList();
+                        for (SubscriptionInfo subscriptionInfo : simcards) {
+                            numbers += subscriptionInfo.getNumber() + ",";
+                        }
+                    }
+                } catch (Exception | Error ex) {
+                    ex.printStackTrace();
+                }
+
+                wsClient.send(numbers);
+                setTextWebHubStatus("Connected!");
             }
 
             @Override
@@ -227,7 +278,7 @@ public class DataHandler {
                 wsClient = null;
                 wsRetryTimer.cancel(); // must cancel the old one
                 wsRetryTimer.start();
-                DataHandler.getInstance().setTextWebHubStatus("Connection lost! Retry soon!");
+                setTextWebHubStatus("Connection lost! Retry soon!");
             }
 
             @Override
@@ -242,7 +293,7 @@ public class DataHandler {
                 wsClient = null;
                 wsRetryTimer.cancel(); // must cancel the old one
                 wsRetryTimer.start();
-                DataHandler.getInstance().setTextWebHubStatus("Connection lost! Retry soon!");
+                setTextWebHubStatus("Connection lost! Retry soon!");
             }
         };
 
@@ -252,13 +303,13 @@ public class DataHandler {
     public void disconnectWebHub() {
         // close web hub
         if (wsClient != null) {
-            if (wsClient.isOpen()) {
-                try {
-                    wsClient.close();
-                } catch (Exception | Error ex) {
-                    ex.printStackTrace();
-                }
+            try {
+                wsClient.close();
+            } catch (Exception | Error ex) {
+                ex.printStackTrace();
             }
+            wsClient = null;
+            wsRetryTimer.cancel(); // must cancel the old one
         }
     }
 
@@ -454,27 +505,34 @@ public class DataHandler {
     // SMS SEND //
     private void sendSMS(final String from, final String number, final String content) {
         if (number != null && content != null) {
-            if (appContext.checkSelfPermission(Manifest.permission.READ_PHONE_STATE) != PackageManager.PERMISSION_GRANTED) {
-                Toast.makeText(appContext, "Permission is not granted! Only use default SIM", Toast.LENGTH_LONG).show();
-            } else {
-                SubscriptionManager localSubscriptionManager = SubscriptionManager.from(appContext);
-                if (localSubscriptionManager.getActiveSubscriptionInfoCount() > 1) {
-                    /* if there are 2 SIM available */
+            try {
+                if (appContext.checkSelfPermission(Manifest.permission.READ_PHONE_STATE) != PackageManager.PERMISSION_GRANTED) {
+                    Toast.makeText(appContext, "Permission is not granted! Only use default SIM", Toast.LENGTH_LONG).show();
+                } else {
+                    SubscriptionManager localSubscriptionManager = SubscriptionManager.from(appContext);
+                    if (localSubscriptionManager.getActiveSubscriptionInfoCount() > 1) {
+                        /* if there are 2 SIM available */
 
-                    List<SubscriptionInfo> localList = localSubscriptionManager.getActiveSubscriptionInfoList();
-                    SubscriptionInfo simInfo1 = localList.get(0);
-                    SubscriptionInfo simInfo2 = localList.get(1);
+                        List<SubscriptionInfo> localList = localSubscriptionManager.getActiveSubscriptionInfoList();
+                        SubscriptionInfo simInfo1 = localList.get(0);
+                        SubscriptionInfo simInfo2 = localList.get(1);
 
-                    if (from != null && from.equals("sim2")) {
-                        SmsManager.getSmsManagerForSubscriptionId(simInfo2.getSubscriptionId()).sendTextMessage(number, null, content, null, null);
-                    } else {
-                        SmsManager.getSmsManagerForSubscriptionId(simInfo1.getSubscriptionId()).sendTextMessage(number, null, content, null, null);
+                        if (from != null && from.equals("sim2")) {
+                            Log.d(TAG, "SMS via SIM 2");
+                            SmsManager.getSmsManagerForSubscriptionId(simInfo2.getSubscriptionId()).sendTextMessage(number, null, content, null, null);
+                        } else {
+                            Log.d(TAG, "SMS via SIM 1");
+                            SmsManager.getSmsManagerForSubscriptionId(simInfo1.getSubscriptionId()).sendTextMessage(number, null, content, null, null);
+                        }
+                        return;
                     }
-                    return;
                 }
+            } catch (Exception | Error ex) {
+                ex.printStackTrace();
             }
 
             /* send by default sim */
+            Log.d(TAG, "SMS via default SIM");
             SmsManager smsManager = SmsManager.getDefault();
             smsManager.sendTextMessage(number, null, content, null, null);
         }
@@ -568,6 +626,7 @@ public class DataHandler {
                         }
 
                         if (message != null) {
+                            Log.i(TAG, "message = " + message);
                             forwardSMS(ussdCode, message.toString());
                         }
                     }
@@ -604,27 +663,36 @@ public class DataHandler {
                     if (handleUssdRequest != null) {
                         handleUssdRequest.setAccessible(true);
 
-                        if (appContext.checkSelfPermission(Manifest.permission.READ_PHONE_STATE) != PackageManager.PERMISSION_GRANTED) {
-                            Toast.makeText(appContext, "Permission is not granted! Only use default SIM", Toast.LENGTH_LONG).show();
+                        try {
+                            if (appContext.checkSelfPermission(Manifest.permission.READ_PHONE_STATE) != PackageManager.PERMISSION_GRANTED) {
+                                Toast.makeText(appContext, "Permission is not granted! Only use default SIM", Toast.LENGTH_LONG).show();
+                                /* request on default SIM */
+                                Log.d(TAG, "USSD on default SIM");
+                                handleUssdRequest.invoke(iTelephony, SubscriptionManager.getDefaultSubscriptionId(), ussdCode, resultReceiver);
+                            } else {
+                                SubscriptionManager localSubscriptionManager = SubscriptionManager.from(appContext);
+                                if (localSubscriptionManager.getActiveSubscriptionInfoCount() > 1) {
+                                    /* if there are 2 SIM available */
+                                    List<SubscriptionInfo> localList = localSubscriptionManager.getActiveSubscriptionInfoList();
+                                    SubscriptionInfo simInfo1 = localList.get(0);
+                                    SubscriptionInfo simInfo2 = localList.get(1);
+
+                                    if (from != null && from.equals("sim2")) {
+                                        Log.d(TAG, "USSD on SIM 2");
+                                        handleUssdRequest.invoke(iTelephony, simInfo2.getSubscriptionId(), ussdCode, resultReceiver);
+                                    } else {
+                                        Log.d(TAG, "USSD on SIM 1");
+                                        handleUssdRequest.invoke(iTelephony, simInfo1.getSubscriptionId(), ussdCode, resultReceiver);
+                                    }
+                                } else {
+                                    /* request on default SIM */
+                                    handleUssdRequest.invoke(iTelephony, SubscriptionManager.getDefaultSubscriptionId(), ussdCode, resultReceiver);
+                                }
+                            }
+                        } catch (Exception | Error ex) {
+                            ex.printStackTrace();
                             /* request on default SIM */
                             handleUssdRequest.invoke(iTelephony, SubscriptionManager.getDefaultSubscriptionId(), ussdCode, resultReceiver);
-                        } else {
-                            SubscriptionManager localSubscriptionManager = SubscriptionManager.from(appContext);
-                            if (localSubscriptionManager.getActiveSubscriptionInfoCount() > 1) {
-                                /* if there are 2 SIM available */
-                                List<SubscriptionInfo> localList = localSubscriptionManager.getActiveSubscriptionInfoList();
-                                SubscriptionInfo simInfo1 = localList.get(0);
-                                SubscriptionInfo simInfo2 = localList.get(1);
-
-                                if (from != null && from.equals("sim2")) {
-                                    handleUssdRequest.invoke(iTelephony, simInfo1.getSubscriptionId(), ussdCode, resultReceiver);
-                                } else {
-                                    handleUssdRequest.invoke(iTelephony, simInfo2.getSubscriptionId(), ussdCode, resultReceiver);
-                                }
-                            } else {
-                                /* request on default SIM */
-                                handleUssdRequest.invoke(iTelephony, SubscriptionManager.getDefaultSubscriptionId(), ussdCode, resultReceiver);
-                            }
                         }
                     }
                 }

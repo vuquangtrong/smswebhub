@@ -54,6 +54,7 @@ public class SmsWebService extends Service {
         Log.i(TAG, "start service via intent = " + intent.toString());
 
         DataHandler.getInstance().connectWebHub();
+        DataHandler.getInstance().setServiceStarted(true);
 
         // remain service
         return START_STICKY;
@@ -64,6 +65,7 @@ public class SmsWebService extends Service {
         Log.i(TAG, "stop service");
 
         DataHandler.getInstance().disconnectWebHub();
+        DataHandler.getInstance().setServiceStarted(false);
 
         super.onDestroy();
     }
