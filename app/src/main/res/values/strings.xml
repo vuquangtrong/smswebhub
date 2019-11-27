@@ -1,0 +1,28 @@
+<resources>
+    <string name="app_name">SmsWebHub</string>
+    <string name="title_web_hub">Web Hub</string>
+    <string name="title_sms_forward">Sms Forward</string>
+    <string name="title_settings">Settings</string>
+    <string name="set">Set</string>
+    <string name="connect">Connect</string>
+    <string name="web_hub_guide">Enter the address of your VPS Web Hub server:</string>
+    <string name="url_hint">example.com:8080</string>
+    <string name="sms_forward_guide">When new SMS arrives, it\'ll be forwarded to the below URL:</string>
+    <string name="url">URL:</string>
+    <string name="prefix_sender">Prefix Sender</string>
+    <string name="hint_sender">sender</string>
+    <string name="prefix_content">Prefix Content:</string>
+    <string name="hint_content">content</string>
+    <string name="prefix_time">Prefix Time:</string>
+    <string name="hint_time">time</string>
+    <string name="prefix_token">Prefix Token:</string>
+    <string name="your_token">Your Token:</string>
+    <string name="hint_token">secret</string>
+    <string name="preview">Preview:</string>
+    <string name="last_request">Last request:</string>
+    <string name="connecting">Connecting…</string>
+    <string name="none">none</string>
+    <string name="last_forwarded_data">Last forwarded data:</string>
+    <string name="no_settings">No Setting</string>
+    <string name="not_activated">This copy is not activated!\n</string>
+</resources>

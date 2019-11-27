@@ -1,0 +1,236 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <TextView
+        android:id="@+id/text_guide"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="8dp"
+        android:layout_marginEnd="8dp"
+        android:text="@string/sms_forward_guide"
+        android:textSize="15sp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+
+    <TextView
+        android:id="@+id/text_guide_url"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="8dp"
+
+        android:layout_marginEnd="8dp"
+        android:text="@string/url"
+        android:textSize="15sp"
+        app:layout_constraintBottom_toBottomOf="@id/input_url"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/text_guide" />
+
+    <EditText
+        android:id="@+id/input_url"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="8dp"
+
+        android:layout_marginEnd="8dp"
+        android:autofillHints=""
+        android:hint="@string/url_hint"
+        android:inputType="textUri"
+        android:textColor="@android:color/holo_blue_dark"
+        android:textSize="15sp"
+        app:layout_constraintStart_toEndOf="@id/text_guide_url"
+        app:layout_constraintTop_toBottomOf="@id/text_guide" />
+
+
+    <TextView
+        android:id="@+id/text_guide_sender"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="8dp"
+        android:layout_marginEnd="8dp"
+        android:text="@string/prefix_sender"
+        android:textSize="15sp"
+        app:layout_constraintBottom_toBottomOf="@id/input_prefix_sender"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/input_url" />
+
+    <EditText
+        android:id="@+id/input_prefix_sender"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="8dp"
+        android:layout_marginEnd="8dp"
+        android:autofillHints=""
+        android:hint="@string/hint_sender"
+        android:inputType="textUri"
+        android:textColor="@android:color/holo_blue_dark"
+        android:textSize="15sp"
+        app:layout_constraintStart_toEndOf="@id/text_guide_sender"
+        app:layout_constraintTop_toBottomOf="@id/input_url" />
+
+
+    <TextView
+        android:id="@+id/text_guide_content"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="8dp"
+        android:layout_marginEnd="8dp"
+        android:text="@string/prefix_content"
+        android:textSize="15sp"
+        app:layout_constraintBottom_toBottomOf="@id/input_prefix_content"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/input_prefix_sender" />
+
+    <EditText
+        android:id="@+id/input_prefix_content"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="8dp"
+        android:layout_marginEnd="8dp"
+        android:autofillHints=""
+        android:hint="@string/hint_content"
+        android:inputType="textUri"
+        android:textColor="@android:color/holo_blue_dark"
+        android:textSize="15sp"
+        app:layout_constraintStart_toEndOf="@id/text_guide_content"
+        app:layout_constraintTop_toBottomOf="@id/input_prefix_sender" />
+
+    <TextView
+        android:id="@+id/text_guide_time"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="8dp"
+        android:layout_marginEnd="8dp"
+        android:text="@string/prefix_time"
+        android:textSize="15sp"
+        app:layout_constraintBottom_toBottomOf="@id/input_prefix_time"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/input_prefix_content" />
+
+    <EditText
+        android:id="@+id/input_prefix_time"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="8dp"
+        android:layout_marginEnd="8dp"
+        android:autofillHints=""
+        android:hint="@string/hint_time"
+        android:inputType="textUri"
+        android:textColor="@android:color/holo_blue_dark"
+        android:textSize="15sp"
+        app:layout_constraintStart_toEndOf="@id/text_guide_time"
+        app:layout_constraintTop_toBottomOf="@id/input_prefix_content" />
+
+    <TextView
+        android:id="@+id/text_guide_token"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="8dp"
+        android:layout_marginEnd="8dp"
+        android:text="@string/prefix_token"
+        android:textSize="15sp"
+        app:layout_constraintBottom_toBottomOf="@id/input_prefix_token"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/input_prefix_time" />
+
+    <EditText
+        android:id="@+id/input_prefix_token"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="8dp"
+        android:layout_marginEnd="8dp"
+        android:autofillHints=""
+        android:hint="@string/hint_token"
+        android:inputType="textUri"
+        android:textColor="@android:color/holo_blue_dark"
+        android:textSize="15sp"
+        app:layout_constraintStart_toEndOf="@id/text_guide_token"
+        app:layout_constraintTop_toBottomOf="@id/input_prefix_time" />
+
+    <TextView
+        android:id="@+id/text_guide_token2"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="8dp"
+        android:layout_marginEnd="8dp"
+        android:text="@string/your_token"
+        android:textSize="15sp"
+        app:layout_constraintBottom_toBottomOf="@id/input_token"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/input_prefix_token" />
+
+    <EditText
+        android:id="@+id/input_token"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="8dp"
+        android:layout_marginEnd="8dp"
+        android:autofillHints=""
+        android:hint="@string/hint_token"
+        android:inputType="textUri"
+        android:textColor="@android:color/holo_blue_dark"
+        android:textSize="15sp"
+        app:layout_constraintStart_toEndOf="@id/text_guide_token2"
+        app:layout_constraintTop_toBottomOf="@id/input_prefix_token" />
+
+    <Button
+        android:id="@+id/btn_set"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/set"
+        android:textAllCaps="false"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/input_token" />
+
+    <TextView
+        android:id="@+id/text_guide_preview"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="8dp"
+        android:layout_marginEnd="8dp"
+        android:text="@string/preview"
+        android:textSize="15sp"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/btn_set" />
+
+    <TextView
+        android:id="@+id/text_guide_preview_request"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="8dp"
+        android:layout_marginEnd="8dp"
+        android:text="@string/none"
+        android:textColor="@android:color/holo_red_dark"
+        android:textSize="15sp"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/text_guide_preview" />
+
+    <TextView
+        android:id="@+id/text_guide_last_data"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="8dp"
+        android:layout_marginEnd="8dp"
+        android:text="@string/last_forwarded_data"
+        android:textSize="15sp"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/text_guide_preview_request" />
+
+    <TextView
+        android:id="@+id/text_last_data"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="8dp"
+        android:layout_marginEnd="8dp"
+        android:text="@string/none"
+        android:textColor="@android:color/holo_red_dark"
+        android:textSize="15sp"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/text_guide_last_data" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>

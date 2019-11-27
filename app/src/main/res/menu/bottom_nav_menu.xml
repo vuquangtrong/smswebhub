@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <item
+        android:id="@+id/navigation_web_hub"
+        android:icon="@drawable/ic_input_black_24dp"
+        android:title="@string/title_web_hub" />
+
+    <item
+        android:id="@+id/navigation_sms_forward"
+        android:icon="@drawable/ic_sms_black_24dp"
+        android:title="@string/title_sms_forward" />
+
+    <item
+        android:id="@+id/navigation_settings"
+        android:icon="@drawable/ic_settings_black_24dp"
+        android:title="@string/title_settings" />
+
+</menu>
