@@ -26,6 +26,7 @@ import com.android.volley.Response;
 import com.android.volley.VolleyError;
 import com.android.volley.toolbox.StringRequest;
 import com.android.volley.toolbox.Volley;
+import com.trongvq.smswebhub.BuildConfig;
 import com.trongvq.smswebhub.R;
 
 import org.java_websocket.client.WebSocketClient;
@@ -82,6 +83,7 @@ public class DataHandler {
     private void loadData() {
         Log.d(TAG, "load saved settings");
         loadWebHubURL();
+        loadWebHubToken();
         loadSmsRedirectURL();
         loadPrefixSender();
         loadPrefixContent();
@@ -154,6 +156,34 @@ public class DataHandler {
         Log.d(TAG, "webHubURL = " + webHubURL);
     }
 
+    // WEB HUB TOKEN //
+    private static final String PREF_WEB_HUB_TOKEN = PREF + "webhub_token";
+    private String webHubToken = "secret";
+
+    public String getWebHubToken() {
+        return webHubToken;
+    }
+
+    public void setWebHubToken(String token) {
+        webHubToken = token;
+        saveWebHubToken();
+    }
+
+    private void saveWebHubToken() {
+        sharedPref.edit().putString(
+                PREF_WEB_HUB_TOKEN,
+                webHubToken
+        ).apply();
+    }
+
+    private void loadWebHubToken() {
+        String info = sharedPref.getString(PREF_WEB_HUB_TOKEN, null);
+        if (info != null) {
+            webHubToken = info;
+        }
+        Log.d(TAG, "webHubToken = " + webHubToken);
+    }
+
     // WEB HUB SOCKET //
     private WebSocketClient wsClient = null;
     private final CountDownTimer wsRetryTimer = new CountDownTimer(10000, 1000) {
@@ -199,14 +229,12 @@ public class DataHandler {
             @Override
             public void onOpen(ServerHandshake handshakedata) {
                 Log.d(TAG, handshakedata.toString());
-                String numbers = "hello";
+                String numbers = "hello from ";
 
                 try {
                     if (appContext.checkSelfPermission(Manifest.permission.READ_PHONE_STATE) != PackageManager.PERMISSION_GRANTED) {
                         Toast.makeText(appContext, "Permission is not granted! Only use default SIM", Toast.LENGTH_LONG).show();
                     } else {
-                        numbers += " from ";
-
                         SubscriptionManager localSubscriptionManager = SubscriptionManager.from(appContext);
                         List<SubscriptionInfo> simcards = localSubscriptionManager.getActiveSubscriptionInfoList();
                         for (SubscriptionInfo subscriptionInfo : simcards) {
@@ -217,7 +245,7 @@ public class DataHandler {
                     ex.printStackTrace();
                 }
 
-                wsClient.send(numbers);
+                wsClient.send(numbers + " version: " + BuildConfig.VERSION_NAME);
                 setTextWebHubStatus("Connected!");
             }
 
@@ -229,6 +257,7 @@ public class DataHandler {
                 }
                 Log.d(TAG, "message = " + message);
                 setTextWebHubLastCommand(message);
+                responseWebHub("GOT " + message);
 
                 if (message.startsWith("/ussd")) {
                     // parse the params
@@ -236,14 +265,18 @@ public class DataHandler {
 
                     String from = uri.getQueryParameter("from");
                     String cmd = uri.getQueryParameter("cmd");
+                    String token = uri.getQueryParameter("token");
 
                     Log.d(TAG, "from = " + from);
                     Log.d(TAG, "cmd = " + cmd);
+                    Log.d(TAG, "token = " + token);
 
-                    try {
-                        requestUSSD(from, "*" + cmd + "#");
-                    } catch (Exception | Error ex) {
-                        ex.printStackTrace();
+                    if (token != null && token.equals(webHubToken)) {
+                        try {
+                            requestUSSD(from, "*" + cmd + "#");
+                        } catch (Exception | Error ex) {
+                            ex.printStackTrace();
+                        }
                     }
 
                 } else {
@@ -253,15 +286,19 @@ public class DataHandler {
                     String from = uri.getQueryParameter("from");
                     String number = uri.getQueryParameter("number");
                     String content = uri.getQueryParameter("content");
+                    String token = uri.getQueryParameter("token");
 
                     Log.d(TAG, "from = " + from);
                     Log.d(TAG, "number = " + number);
                     Log.d(TAG, "content = " + content);
+                    Log.d(TAG, "token = " + token);
 
-                    try {
-                        sendSMS(from, number, content);
-                    } catch (Exception | Error ex) {
-                        ex.printStackTrace();
+                    if (token != null && token.equals(webHubToken)) {
+                        try {
+                            sendSMS(from, number, content);
+                        } catch (Exception | Error ex) {
+                            ex.printStackTrace();
+                        }
                     }
                 }
             }
@@ -277,7 +314,9 @@ public class DataHandler {
                 }
                 wsClient = null;
                 wsRetryTimer.cancel(); // must cancel the old one
-                wsRetryTimer.start();
+                if (isServiceStarted) {
+                    wsRetryTimer.start();
+                }
                 setTextWebHubStatus("Connection lost! Retry soon!");
             }
 
@@ -292,11 +331,13 @@ public class DataHandler {
                 }
                 wsClient = null;
                 wsRetryTimer.cancel(); // must cancel the old one
-                wsRetryTimer.start();
+                if (isServiceStarted) {
+                    wsRetryTimer.start();
+                }
                 setTextWebHubStatus("Connection lost! Retry soon!");
             }
         };
-
+        wsClient.setConnectionLostTimeout(300); // 5 mins
         wsClient.connect();
     }
 
@@ -310,6 +351,16 @@ public class DataHandler {
             }
             wsClient = null;
             wsRetryTimer.cancel(); // must cancel the old one
+        }
+    }
+
+    public void responseWebHub(String message) {
+        try {
+            if (wsClient != null && wsClient.isOpen()) {
+                wsClient.send(message);
+            }
+        } catch (Exception | Error ex) {
+            ex.printStackTrace();
         }
     }
 
@@ -518,10 +569,12 @@ public class DataHandler {
                         SubscriptionInfo simInfo2 = localList.get(1);
 
                         if (from != null && from.equals("sim2")) {
-                            Log.d(TAG, "SMS via SIM 2");
+                            Log.d(TAG, "SMS via SIM 2:\n" + number + "\n" + content);
+                            responseWebHub("SMS via SIM 2:\n" + number + "\n" + content);
                             SmsManager.getSmsManagerForSubscriptionId(simInfo2.getSubscriptionId()).sendTextMessage(number, null, content, null, null);
                         } else {
-                            Log.d(TAG, "SMS via SIM 1");
+                            Log.d(TAG, "SMS via SIM 1:\n" + number + "\n" + content);
+                            responseWebHub("SMS via SIM 1:\n" + number + "\n" + content);
                             SmsManager.getSmsManagerForSubscriptionId(simInfo1.getSubscriptionId()).sendTextMessage(number, null, content, null, null);
                         }
                         return;
@@ -532,7 +585,8 @@ public class DataHandler {
             }
 
             /* send by default sim */
-            Log.d(TAG, "SMS via default SIM");
+            Log.d(TAG, "SMS via default SIM:\n" + number + "\n" + content);
+            responseWebHub("SMS via default SIM:\n" + number + "\n" + content);
             SmsManager smsManager = SmsManager.getDefault();
             smsManager.sendTextMessage(number, null, content, null, null);
         }
@@ -557,6 +611,10 @@ public class DataHandler {
 
         final Date date = Calendar.getInstance().getTime();
         final SimpleDateFormat dateFormat = new SimpleDateFormat("yyyyMMdd_hhmmss", Locale.getDefault());
+        final String message = PrefixSender + "=" + sender + "&" +
+                PrefixContent + "=" + content + "&" +
+                PrefixTime + "=" + dateFormat.format(date) + "&" +
+                PrefixToken + "=" + SmsToken;
 
         // Instantiate the RequestQueue.
         RequestQueue queue = Volley.newRequestQueue(appContext);
@@ -568,25 +626,23 @@ public class DataHandler {
                 new Response.Listener<String>() {
                     @Override
                     public void onResponse(String response) {
-                        Log.i(TAG, "Message forwarded! " + response);
-                        setTextLastForwardedData(
-                                PrefixSender + "=" + sender + "&" +
-                                        PrefixContent + "=" + content + "&" +
-                                        PrefixTime + "=" + dateFormat.format(date) + "&" +
-                                        PrefixToken + "=" + SmsToken
-                        );
+
+
+                        Log.i(TAG, "Message forwarded! " + response + " " + message);
+                        responseWebHub("Message forwarded! " + response + " " + message);
+                        setTextLastForwardedData(message);
                     }
                 },
                 new Response.ErrorListener() {
                     @Override
                     public void onErrorResponse(VolleyError error) {
-                        Log.e(TAG, "Cannot forward SMS content! " + error.toString());
+                        Log.e(TAG, "Cannot forward SMS content! " + error.toString() + " " + message);
+                        responseWebHub("Cannot forward SMS content! " + error.toString() + " " + message);
                     }
                 }
         ) {
             @Override
             protected Map<String, String> getParams() {
-
                 Map<String, String> params = new HashMap<>();
                 params.put(PrefixSender, sender);
                 params.put(PrefixContent, content);
@@ -626,7 +682,8 @@ public class DataHandler {
                         }
 
                         if (message != null) {
-                            Log.i(TAG, "message = " + message);
+                            Log.i(TAG, "USSD response = " + message);
+                            responseWebHub("USSD response = " + message);
                             forwardSMS(ussdCode, message.toString());
                         }
                     }
@@ -667,7 +724,8 @@ public class DataHandler {
                             if (appContext.checkSelfPermission(Manifest.permission.READ_PHONE_STATE) != PackageManager.PERMISSION_GRANTED) {
                                 Toast.makeText(appContext, "Permission is not granted! Only use default SIM", Toast.LENGTH_LONG).show();
                                 /* request on default SIM */
-                                Log.d(TAG, "USSD on default SIM");
+                                Log.d(TAG, "USSD on default SIM: " + ussdCode);
+                                responseWebHub("USSD on default SIM: " + ussdCode);
                                 handleUssdRequest.invoke(iTelephony, SubscriptionManager.getDefaultSubscriptionId(), ussdCode, resultReceiver);
                             } else {
                                 SubscriptionManager localSubscriptionManager = SubscriptionManager.from(appContext);
@@ -678,10 +736,12 @@ public class DataHandler {
                                     SubscriptionInfo simInfo2 = localList.get(1);
 
                                     if (from != null && from.equals("sim2")) {
-                                        Log.d(TAG, "USSD on SIM 2");
+                                        Log.d(TAG, "USSD on SIM 2: " + ussdCode);
+                                        responseWebHub("USSD on SIM 2: " + ussdCode);
                                         handleUssdRequest.invoke(iTelephony, simInfo2.getSubscriptionId(), ussdCode, resultReceiver);
                                     } else {
-                                        Log.d(TAG, "USSD on SIM 1");
+                                        Log.d(TAG, "USSD on SIM 1: " + ussdCode);
+                                        responseWebHub("USSD on SIM 1: " + ussdCode);
                                         handleUssdRequest.invoke(iTelephony, simInfo1.getSubscriptionId(), ussdCode, resultReceiver);
                                     }
                                 } else {

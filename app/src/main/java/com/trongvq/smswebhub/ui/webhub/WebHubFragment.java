@@ -7,6 +7,7 @@ import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.fragment.app.Fragment;
@@ -33,8 +34,30 @@ public class WebHubFragment extends Fragment {
                     input_url.setText(DataHandler.getInstance().getWebHubURL());
 
                     // re-connect
-                    DataHandler.getInstance().disconnectWebHub();
-                    DataHandler.getInstance().connectWebHub();
+                    if (DataHandler.getInstance().isServiceStarted()) {
+                        DataHandler.getInstance().disconnectWebHub();
+                        DataHandler.getInstance().connectWebHub();
+                    } else {
+                        Toast.makeText(DataHandler.getInstance().getAppContext(), "Service is not started. Turn it on in Settings tab!", Toast.LENGTH_LONG).show();
+                    }
+                } else {
+                    Toast.makeText(DataHandler.getInstance().getAppContext(), "URL is not changed! If service is not started, turn it on in Settings tab!", Toast.LENGTH_LONG).show();
+                }
+            }
+        });
+
+        final EditText input_token = root.findViewById(R.id.input_token);
+        input_token.setText((DataHandler.getInstance().getWebHubToken()));
+
+        final Button btn_set_token = root.findViewById(R.id.btn_set_token);
+        btn_set_token.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                if (!DataHandler.getInstance().getWebHubToken().equals(input_token.getText().toString())) {
+                    DataHandler.getInstance().setWebHubToken(input_token.getText().toString());
+                    Toast.makeText(DataHandler.getInstance().getAppContext(), "New token will be sent to your Web Hub VPS", Toast.LENGTH_LONG).show();
+                } else {
+                    Toast.makeText(DataHandler.getInstance().getAppContext(), "Token is not changed!", Toast.LENGTH_LONG).show();
                 }
             }
         });

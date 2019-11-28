@@ -63,8 +63,7 @@ public class MainActivity extends AppCompatActivity implements EasyPermissions.P
     @Override
     public void onPermissionsGranted(int requestCode, @NonNull List<String> perms) {
         Log.d(TAG, "onPermissionsGranted:" + requestCode + ":" + perms.size());
-        Toast.makeText(this, "Permissions are granted!\nClose this app and run it again to start background service!", Toast.LENGTH_LONG).show();
-        stopService(new Intent(getApplicationContext(), SmsWebService.class));
+        Toast.makeText(this, "Permissions are granted! Close this app and run it again to start background service!", Toast.LENGTH_LONG).show();
         finish();
     }
 
