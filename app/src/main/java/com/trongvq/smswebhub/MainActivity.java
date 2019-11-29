@@ -31,7 +31,9 @@ public class MainActivity extends AppCompatActivity implements EasyPermissions.P
             Manifest.permission.CALL_PHONE,
             Manifest.permission.SEND_SMS,
             Manifest.permission.RECEIVE_SMS,
-            Manifest.permission.INTERNET
+            Manifest.permission.INTERNET,
+            Manifest.permission.READ_EXTERNAL_STORAGE,
+            Manifest.permission.WRITE_EXTERNAL_STORAGE
     };
 
     @Override
@@ -47,11 +49,6 @@ public class MainActivity extends AppCompatActivity implements EasyPermissions.P
         if (!EasyPermissions.hasPermissions(this, wantedPermissions)) {
             EasyPermissions.requestPermissions(this, "This app needs some permissions!", REQUEST_CODE_PERMISSION_SMS, wantedPermissions);
         }
-
-        // check activation
-        if (!DataHandler.getInstance().isActivated()) {
-            DataHandler.getInstance().setTextWebHubStatus(getString(R.string.not_activated));
-        }
     }
 
     @Override
@@ -65,6 +62,7 @@ public class MainActivity extends AppCompatActivity implements EasyPermissions.P
         Log.d(TAG, "onPermissionsGranted:" + requestCode + ":" + perms.size());
         Toast.makeText(this, "Permissions are granted! Close this app and run it again to start background service!", Toast.LENGTH_LONG).show();
         finish();
+        System.exit(0);
     }
 
     @Override

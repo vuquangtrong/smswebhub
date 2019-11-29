@@ -6,6 +6,7 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
+import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 import androidx.fragment.app.Fragment;
@@ -18,6 +19,14 @@ import com.trongvq.smswebhub.service.SmsWebService;
 public class SettingsFragment extends Fragment {
     public View onCreateView(@NonNull LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
         View root = inflater.inflate(R.layout.fragment_settings, container, false);
+
+        final TextView text_guide = root.findViewById(R.id.text_guide);
+        DataHandler.getInstance().getTextActivationStatus().observe(this, new Observer<String>() {
+            @Override
+            public void onChanged(String s) {
+                text_guide.setText(s);
+            }
+        });
 
         final Button btn_toggle_service = root.findViewById(R.id.btn_toggle_service);
         if (DataHandler.getInstance().isServiceStarted()) {
@@ -42,6 +51,13 @@ public class SettingsFragment extends Fragment {
                 btn_toggle_service.setText(s);
             }
         });
+
+        // check activation
+        if (DataHandler.getInstance().isActivated()) {
+            DataHandler.getInstance().setTextActivationStatus(getString(R.string.license_activated));
+        } else {
+            DataHandler.getInstance().setTextActivationStatus(getString(R.string.license_not_activated));
+        }
 
         return root;
     }

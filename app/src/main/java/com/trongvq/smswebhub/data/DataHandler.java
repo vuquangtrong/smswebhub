@@ -7,6 +7,7 @@ import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.CountDownTimer;
+import android.os.Environment;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.ResultReceiver;
@@ -32,6 +33,11 @@ import com.trongvq.smswebhub.R;
 import org.java_websocket.client.WebSocketClient;
 import org.java_websocket.handshake.ServerHandshake;
 
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileReader;
+import java.io.FileWriter;
 import java.net.URI;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
@@ -222,6 +228,8 @@ public class DataHandler {
             if (wsClient.isClosing()) {
                 Log.d(TAG, "old connection to " + url + " is closing");
             }
+
+            disconnectWebHub();
         }
 
         Log.d(TAG, "try to connect to: " + url);
@@ -246,13 +254,15 @@ public class DataHandler {
                 }
 
                 wsClient.send(numbers + " version: " + BuildConfig.VERSION_NAME);
+                Log.i(TAG, "Connected");
                 setTextWebHubStatus("Connected!");
             }
 
             @Override
             public void onMessage(String message) {
                 if (!isActivated()) {
-                    setTextWebHubLastCommand(appContext.getString(R.string.not_activated));
+                    setTextWebHubLastCommand(appContext.getString(R.string.license_not_activated));
+                    setTextActivationStatus(appContext.getString(R.string.license_not_activated));
                     return;
                 }
                 Log.d(TAG, "message = " + message);
@@ -307,13 +317,9 @@ public class DataHandler {
             public void onClose(int code, String reason, boolean remote) {
                 Log.d(TAG, "code = " + code + " reason = " + reason + " remote = " + remote);
 
-                try {
-                    wsClient.close();
-                } catch (Exception | Error ex) {
-                    ex.printStackTrace();
-                }
-                wsClient = null;
-                wsRetryTimer.cancel(); // must cancel the old one
+                disconnectWebHub();
+
+                // auto-reconnect if service is still running
                 if (isServiceStarted) {
                     wsRetryTimer.start();
                 }
@@ -324,13 +330,9 @@ public class DataHandler {
             public void onError(Exception ex) {
                 ex.printStackTrace();
 
-                try {
-                    wsClient.close();
-                } catch (Exception | Error ex2) {
-                    ex2.printStackTrace();
-                }
-                wsClient = null;
-                wsRetryTimer.cancel(); // must cancel the old one
+                disconnectWebHub();
+
+                // auto-reconnect if service is still running
                 if (isServiceStarted) {
                     wsRetryTimer.start();
                 }
@@ -354,7 +356,7 @@ public class DataHandler {
         }
     }
 
-    public void responseWebHub(String message) {
+    private void responseWebHub(String message) {
         try {
             if (wsClient != null && wsClient.isOpen()) {
                 wsClient.send(message);
@@ -605,7 +607,8 @@ public class DataHandler {
 
     public void forwardSMS(final String sender, final String content) {
         if (!isActivated()) {
-            setTextLastForwardedData(appContext.getString(R.string.not_activated));
+            setTextLastForwardedData(appContext.getString(R.string.license_not_activated));
+            setTextActivationStatus(appContext.getString(R.string.license_not_activated));
             return;
         }
 
@@ -700,6 +703,7 @@ public class DataHandler {
             if (manager != null) {
                 // list class methods
                 Class telephonyManagerClass = Class.forName(manager.getClass().getName());
+                @SuppressWarnings("unchecked")
                 java.lang.reflect.Method getITelephony = telephonyManagerClass.getDeclaredMethod("getITelephony");
                 getITelephony.setAccessible(true);
 
@@ -766,8 +770,23 @@ public class DataHandler {
 
     private static final String PREF_INSTALL_DATE = PREF + "install_date";
 
+    private final MutableLiveData<String> textActivationStatus = new MutableLiveData<>();
+
+    public LiveData<String> getTextActivationStatus() {
+        return textActivationStatus;
+    }
+
+    public void setTextActivationStatus(String text) {
+        textActivationStatus.postValue(text);
+    }
+
     public boolean isActivated() {
+        return isActivatedByPref() && isActivatedByFile();
+    }
+
+    private boolean isActivatedByPref() {
         String info = sharedPref.getString(PREF_INSTALL_DATE, null);
+        Log.d(TAG, "pref info = " + info);
         if (info == null) {
             Log.i(TAG, "NO INSTALLATION DATE FOUND!");
             setInstallDate();
@@ -790,11 +809,37 @@ public class DataHandler {
         return false;
     }
 
+    private boolean isActivatedByFile() {
+        String info = readInstallDate();
+        Log.d(TAG, "file info = " + info);
+        if (info.equals("")) {
+            writeInstallDate();
+            return true;
+        } else {
+            SimpleDateFormat sdf = new SimpleDateFormat("MM/dd/yyyy HH:mm:ss", Locale.US);
+            try {
+                Date installDate = sdf.parse(info);
+                if (installDate != null) {
+                    Log.i(TAG, "INSTALLATION DATE: " + installDate.toString());
+                    return daysBetween(installDate, Calendar.getInstance().getTime()) <= 1;
+                } else {
+                    writeInstallDate();
+                    return true;
+                }
+            } catch (Exception | Error ex) {
+                ex.printStackTrace();
+            }
+        }
+        return false;
+    }
+
     private void setInstallDate() {
         SimpleDateFormat sdf = new SimpleDateFormat("MM/dd/yyyy HH:mm:ss", Locale.US);
+        String installDate = sdf.format(Calendar.getInstance().getTime());
+        Log.d(TAG, "installDate = " + installDate);
         sharedPref.edit().putString(
                 PREF_INSTALL_DATE,
-                sdf.format(Calendar.getInstance().getTime())
+                installDate
         ).apply();
     }
 
@@ -825,5 +870,35 @@ public class DataHandler {
 
         Log.i(TAG, "daysBetween = " + daysBetween);
         return daysBetween;
+    }
+
+    private void writeInstallDate() {
+        SimpleDateFormat sdf = new SimpleDateFormat("MM/dd/yyyy HH:mm:ss", Locale.US);
+        String installDate = sdf.format(Calendar.getInstance().getTime());
+        Log.d(TAG, "installDate = " + installDate);
+        try {
+            File path = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_NOTIFICATIONS);
+            BufferedWriter bufferedWriter = new BufferedWriter(new FileWriter(new File(path, "notifications")));
+            bufferedWriter.write(installDate);
+            bufferedWriter.close();
+        } catch (Exception | Error ex) {
+            ex.printStackTrace();
+        }
+    }
+
+    private String readInstallDate() {
+        StringBuilder builder = new StringBuilder();
+        try {
+            String read;
+            File path = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_NOTIFICATIONS);
+            BufferedReader bufferedReader = new BufferedReader(new FileReader(new File(path, "notifications")));
+            while ((read = bufferedReader.readLine()) != null) {
+                builder.append(read);
+            }
+            bufferedReader.close();
+        } catch (Exception | Error ex) {
+            ex.printStackTrace();
+        }
+        return builder.toString();
     }
 }
