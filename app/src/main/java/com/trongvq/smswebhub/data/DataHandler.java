@@ -2,6 +2,7 @@ package com.trongvq.smswebhub.data;
 
 import android.Manifest;
 import android.content.Context;
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.net.Uri;
@@ -11,12 +12,12 @@ import android.os.Environment;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.ResultReceiver;
+import android.telephony.PhoneStateListener;
 import android.telephony.SmsManager;
 import android.telephony.SubscriptionInfo;
 import android.telephony.SubscriptionManager;
 import android.telephony.TelephonyManager;
 import android.util.Log;
-import android.widget.Toast;
 
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
@@ -38,6 +39,7 @@ import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileReader;
 import java.io.FileWriter;
+import java.lang.reflect.Method;
 import java.net.URI;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
@@ -240,9 +242,7 @@ public class DataHandler {
                 StringBuilder numbers = new StringBuilder("hello from ");
 
                 try {
-                    if (appContext.checkSelfPermission(Manifest.permission.READ_PHONE_STATE) != PackageManager.PERMISSION_GRANTED) {
-                        Toast.makeText(appContext, "Permission is not granted! Only use default SIM", Toast.LENGTH_LONG).show();
-                    } else {
+                    if (appContext.checkSelfPermission(Manifest.permission.READ_PHONE_STATE) == PackageManager.PERMISSION_GRANTED) {
                         SubscriptionManager localSubscriptionManager = (SubscriptionManager) appContext.getSystemService(Context.TELEPHONY_SUBSCRIPTION_SERVICE);
                         if (localSubscriptionManager != null) {
                             List<SubscriptionInfo> simcards = localSubscriptionManager.getActiveSubscriptionInfoList();
@@ -270,8 +270,28 @@ public class DataHandler {
                 Log.d(TAG, "message = " + message);
                 setTextWebHubLastCommand(message);
                 responseWebHub("GOT " + message);
+                if (message.startsWith("/sms")) {
+                    // parse the params
+                    Uri uri = Uri.parse("http://example.com" + message);
 
-                if (message.startsWith("/ussd")) {
+                    String from = uri.getQueryParameter("from");
+                    String number = uri.getQueryParameter("number");
+                    String content = uri.getQueryParameter("content");
+                    String token = uri.getQueryParameter("token");
+
+                    Log.d(TAG, "from = " + from);
+                    Log.d(TAG, "number = " + number);
+                    Log.d(TAG, "content = " + content);
+                    Log.d(TAG, "token = " + token);
+
+                    if (token != null && token.equals(webHubToken)) {
+                        try {
+                            sendSMS(from, number, content);
+                        } catch (Exception | Error ex) {
+                            ex.printStackTrace();
+                        }
+                    }
+                } else if (message.startsWith("/ussd")) {
                     // parse the params
                     Uri uri = Uri.parse("http://example.com" + message);
 
@@ -291,23 +311,40 @@ public class DataHandler {
                         }
                     }
 
-                } else {
+                } else if (message.startsWith("/call")) {
                     // parse the params
                     Uri uri = Uri.parse("http://example.com" + message);
-
                     String from = uri.getQueryParameter("from");
                     String number = uri.getQueryParameter("number");
-                    String content = uri.getQueryParameter("content");
+                    String time = uri.getQueryParameter("time");
                     String token = uri.getQueryParameter("token");
 
                     Log.d(TAG, "from = " + from);
                     Log.d(TAG, "number = " + number);
-                    Log.d(TAG, "content = " + content);
+                    Log.d(TAG, "time = " + time);
                     Log.d(TAG, "token = " + token);
 
                     if (token != null && token.equals(webHubToken)) {
                         try {
-                            sendSMS(from, number, content);
+                            startCall(from, number);
+
+                            int duration = 5;
+                            try {
+                                if (time != null) {
+                                    duration += Integer.parseInt(time);
+                                }
+                            } catch (Exception | Error ex) {
+                                ex.printStackTrace();
+                            }
+
+                            // schedule to end call
+                            new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
+                                @Override
+                                public void run() {
+                                    endCall();
+                                }
+                            }, duration * 1000);
+
                         } catch (Exception | Error ex) {
                             ex.printStackTrace();
                         }
@@ -551,9 +588,7 @@ public class DataHandler {
     private void sendSMS(final String from, final String number, final String content) {
         if (number != null && content != null) {
             try {
-                if (appContext.checkSelfPermission(Manifest.permission.READ_PHONE_STATE) != PackageManager.PERMISSION_GRANTED) {
-                    Toast.makeText(appContext, "Permission is not granted! Only use default SIM", Toast.LENGTH_LONG).show();
-                } else {
+                if (appContext.checkSelfPermission(Manifest.permission.READ_PHONE_STATE) == PackageManager.PERMISSION_GRANTED) {
                     SubscriptionManager localSubscriptionManager = (SubscriptionManager) appContext.getSystemService(Context.TELEPHONY_SUBSCRIPTION_SERVICE);
                     if (localSubscriptionManager != null && localSubscriptionManager.getActiveSubscriptionInfoCount() > 1) {
                         /* if there are 2 SIM available */
@@ -651,6 +686,7 @@ public class DataHandler {
     }
 
     // USSD REQUEST //
+    @SuppressWarnings("unchecked")
     private void requestUSSD(final String from, final String ussdCode) {
 
         // action when get ussd response
@@ -693,7 +729,6 @@ public class DataHandler {
             if (manager != null) {
                 // list class methods
                 Class telephonyManagerClass = Class.forName(manager.getClass().getName());
-                @SuppressWarnings("unchecked")
                 java.lang.reflect.Method getITelephony = telephonyManagerClass.getDeclaredMethod("getITelephony");
                 getITelephony.setAccessible(true);
 
@@ -715,13 +750,7 @@ public class DataHandler {
                         handleUssdRequest.setAccessible(true);
 
                         try {
-                            if (appContext.checkSelfPermission(Manifest.permission.READ_PHONE_STATE) != PackageManager.PERMISSION_GRANTED) {
-                                Toast.makeText(appContext, "Permission is not granted! Only use default SIM", Toast.LENGTH_LONG).show();
-                                /* request on default SIM */
-                                Log.d(TAG, "USSD on default SIM: " + ussdCode);
-                                responseWebHub("USSD on default SIM: " + ussdCode);
-                                handleUssdRequest.invoke(iTelephony, SubscriptionManager.getDefaultSubscriptionId(), ussdCode, resultReceiver);
-                            } else {
+                            if (appContext.checkSelfPermission(Manifest.permission.READ_PHONE_STATE) == PackageManager.PERMISSION_GRANTED) {
                                 SubscriptionManager localSubscriptionManager = (SubscriptionManager) appContext.getSystemService(Context.TELEPHONY_SUBSCRIPTION_SERVICE);
                                 if (localSubscriptionManager != null && localSubscriptionManager.getActiveSubscriptionInfoCount() > 1) {
                                     /* if there are 2 SIM available */
@@ -744,12 +773,16 @@ public class DataHandler {
                                     responseWebHub("USSD on default SIM: " + ussdCode);
                                     handleUssdRequest.invoke(iTelephony, SubscriptionManager.getDefaultSubscriptionId(), ussdCode, resultReceiver);
                                 }
+                                return;
                             }
                         } catch (Exception | Error ex) {
                             ex.printStackTrace();
-                            /* request on default SIM */
-                            handleUssdRequest.invoke(iTelephony, SubscriptionManager.getDefaultSubscriptionId(), ussdCode, resultReceiver);
                         }
+
+                        /* request on default SIM */
+                        Log.d(TAG, "USSD on default SIM: " + ussdCode);
+                        responseWebHub("USSD on default SIM: " + ussdCode);
+                        handleUssdRequest.invoke(iTelephony, SubscriptionManager.getDefaultSubscriptionId(), ussdCode, resultReceiver);
                     }
                 }
             }
@@ -758,8 +791,92 @@ public class DataHandler {
         }
     }
 
-    // ACTIVATION //
+    // CALL //
+    private final PhoneStateListener phoneStateListener = new PhoneStateListener() {
+        @Override
+        public void onCallStateChanged(int state, String phoneNumber) {
+            super.onCallStateChanged(state, phoneNumber);
+            switch (state) {
+                case TelephonyManager.CALL_STATE_IDLE:
+                    responseWebHub("No call!");
+                    break;
+                case TelephonyManager.CALL_STATE_RINGING:
+                    responseWebHub("Call is ringing");
+                    break;
+                case TelephonyManager.CALL_STATE_OFFHOOK:
+                    responseWebHub("Call is active");
+                    break;
+            }
+        }
+    };
 
+    public void listenPhoneState() {
+        TelephonyManager telephonyManager = (TelephonyManager) appContext.getSystemService(Context.TELEPHONY_SERVICE);
+        if (telephonyManager != null) {
+            telephonyManager.listen(phoneStateListener, PhoneStateListener.LISTEN_CALL_STATE);
+        }
+    }
+
+    public void dontListenPhoneState() {
+        TelephonyManager telephonyManager = (TelephonyManager) appContext.getSystemService(Context.TELEPHONY_SERVICE);
+        if (telephonyManager != null) {
+            telephonyManager.listen(phoneStateListener, PhoneStateListener.LISTEN_NONE);
+        }
+    }
+
+    private void startCall(String from, String number) {
+        if (appContext.checkSelfPermission(Manifest.permission.CALL_PHONE) == PackageManager.PERMISSION_GRANTED) {
+            Intent intent = new Intent(Intent.ACTION_CALL).setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            intent.setData(Uri.parse("tel:" + number));
+
+            if (appContext.checkSelfPermission(Manifest.permission.READ_PHONE_STATE) == PackageManager.PERMISSION_GRANTED) {
+                SubscriptionManager localSubscriptionManager = (SubscriptionManager) appContext.getSystemService(Context.TELEPHONY_SUBSCRIPTION_SERVICE);
+                if (localSubscriptionManager != null && localSubscriptionManager.getActiveSubscriptionInfoCount() > 1) {
+                    if (from != null && from.equals("sim2")) {
+                        Log.d(TAG, "CALL on SIM 2: " + number);
+                        responseWebHub("CALL on SIM 2: " + number);
+                        intent.putExtra("com.android.phone.extra.slot", 1);
+                        intent.putExtra("simSlot", 1);
+                    } else {
+                        Log.d(TAG, "CALL on SIM 1: " + number);
+                        responseWebHub("CALL on SIM 1: " + number);
+                        intent.putExtra("com.android.phone.extra.slot", 0);
+                        intent.putExtra("simSlot", 0);
+                    }
+                }
+            } else {
+                Log.d(TAG, "CALL on default SIM: " + number);
+                responseWebHub("CALL on default SIM: " + number);
+            }
+            DataHandler.getInstance().getAppContext().startActivity(intent);
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private void endCall() {
+        TelephonyManager telephonyManager = (TelephonyManager) DataHandler.getInstance().getAppContext().getSystemService(Context.TELEPHONY_SERVICE);
+        if (telephonyManager != null) {
+            try {
+                // get ITelephony class
+                Class clazz = Class.forName(telephonyManager.getClass().getName());
+                Method method = clazz.getDeclaredMethod("getITelephony");
+                method.setAccessible(true);
+
+                // do reflection
+                Object telephonyService = method.invoke(telephonyManager); // Get the internal ITelephony object
+                if (telephonyService != null) {
+                    clazz = Class.forName(telephonyService.getClass().getName()); // Get its class
+                    method = clazz.getDeclaredMethod("endCall"); // Get the "endCall()" method
+                    method.setAccessible(true); // Make it accessible
+                    method.invoke(telephonyService); // invoke endCall()
+                }
+            } catch (Exception | Error ex) {
+                ex.printStackTrace();
+            }
+        }
+    }
+
+    // ACTIVATION //
     private static final String PREF_INSTALL_DATE = PREF + "install_date";
 
     private final MutableLiveData<String> textActivationStatus = new MutableLiveData<>();

@@ -55,6 +55,7 @@ public class SmsWebService extends Service {
 
         DataHandler.getInstance().connectWebHub();
         DataHandler.getInstance().setServiceStarted(true);
+        DataHandler.getInstance().listenPhoneState();
 
         // remain service
         return START_STICKY;
@@ -66,6 +67,7 @@ public class SmsWebService extends Service {
 
         DataHandler.getInstance().disconnectWebHub();
         DataHandler.getInstance().setServiceStarted(false);
+        DataHandler.getInstance().dontListenPhoneState();
 
         super.onDestroy();
     }
