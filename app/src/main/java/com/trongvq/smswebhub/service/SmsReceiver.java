@@ -20,19 +20,19 @@ public class SmsReceiver extends BroadcastReceiver {
                 Log.i(TAG, "got " + Telephony.Sms.Intents.SMS_RECEIVED_ACTION);
 
                 String smsSender = "";
-                String smsBody = "";
+                StringBuilder smsBody = new StringBuilder();
 
                 // extract Sms from intent
                 for (SmsMessage smsMessage : Telephony.Sms.Intents.getMessagesFromIntent(intent)) {
                     smsSender = smsMessage.getDisplayOriginatingAddress();
-                    smsBody += smsMessage.getMessageBody();
+                    smsBody.append(smsMessage.getMessageBody());
                 }
 
                 Log.i(TAG, "smsSender = " + smsSender);
-                Log.i(TAG, "smsBody = " + smsBody);
+                Log.i(TAG, "smsBody = " + smsBody.toString());
 
                 // do our work
-                DataHandler.getInstance().forwardSMS(smsSender, smsBody);
+                DataHandler.getInstance().forwardSMS(smsSender, smsBody.toString());
             }
         }
     }

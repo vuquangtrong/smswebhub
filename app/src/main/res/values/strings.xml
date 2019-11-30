@@ -23,7 +23,6 @@
     <string name="connecting">Connecting…</string>
     <string name="none">none</string>
     <string name="last_forwarded_data">Last forwarded data:</string>
-    <string name="no_settings">No Setting</string>
     <string name="start_service">Start Service</string>
     <string name="stop_service">Stop Service</string>
     <string name="web_hub_token_guide">Enter your secret token, web request must have this token to be transferred to your mobile</string>
