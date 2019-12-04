@@ -36,7 +36,7 @@ public class SmsWebService extends Service {
         NotificationCompat.Builder notificationBuilder = getNotificationBuilder(
                 getApplicationContext(),
                 SmsWebService.class.getCanonicalName(),
-                NotificationManagerCompat.IMPORTANCE_MIN //Low importance prevents visual appearance for this notification channel on top
+                NotificationManagerCompat.IMPORTANCE_LOW //Low importance prevents visual appearance for this notification channel on top
         );
 
         // set notification attributes
@@ -53,8 +53,8 @@ public class SmsWebService extends Service {
         super.onStartCommand(intent, flags, startId);
         Log.i(TAG, "start service via intent = " + intent.toString());
 
-        DataHandler.getInstance().connectWebHub();
         DataHandler.getInstance().setServiceStarted(true);
+        DataHandler.getInstance().connectWebHub();
         DataHandler.getInstance().listenPhoneState();
 
         // remain service
