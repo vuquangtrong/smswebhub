@@ -1,14 +1,11 @@
-#!/usr/bin/python3
-
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from datetime import datetime
 import asyncio
 import websockets
 import threading
+import urllib.parse
 
-
-# import urllib.parse
-
+print("STABLE VERSION")
 
 def getTime():
     """get timestamp for log"""
@@ -20,9 +17,8 @@ class WebSocketThread(threading.Thread):
     """WebSocketThread will make websocket run in an a new thread"""
 
     # override self init
-    def __init__(self, name):
+    def __init__(self):
         threading.Thread.__init__(self)
-        self.name = name
         self.USERS = set()
 
     # override run method
@@ -30,7 +26,7 @@ class WebSocketThread(threading.Thread):
         # must set a new loop for asyncio
         asyncio.set_event_loop(asyncio.new_event_loop())
         # setup a server, run at localhost
-        # print(getTime(), "Web Socket is running at port 8080")
+        print(getTime(), "Web Socket is running at port 8080")
         asyncio.get_event_loop().run_until_complete(websockets.serve(self.listen, '0.0.0.0', 8080))
         # keep thread running
         asyncio.get_event_loop().run_forever()
@@ -47,15 +43,15 @@ class WebSocketThread(threading.Thread):
         while True:
             try:
                 msg = await websocket.recv()
-                # if msg is None:
-                #    break
+                if msg is None:
+                    break
                 # await self.handle_message(websocket, msg)
+                print(getTime(), "received: ", websocket, msg)
 
             except websockets.exceptions.ConnectionClosed:
-                # print(getTime(), "close: ", websocket)
+                print(getTime(), "close: ", websocket)
                 break
 
-        # remove user if he disconnected
         self.USERS.remove(websocket)
 
     # message handler
@@ -77,10 +73,10 @@ class WebSocketThread(threading.Thread):
 
 
 # Create a thread of Web Socket
-threadWebSocket = WebSocketThread("WebHub")
+threadWebSocket = WebSocketThread()
+# start WebSocketThread
+threadWebSocket.start()
 
-# Count the number of request
-request_count = 1
 
 # HTTP Web Server to listen to user GET Requests
 # then extract the command and send to mobile via web socket
@@ -88,22 +84,14 @@ class SimpleHTTPRequestHandler(BaseHTTPRequestHandler):
 
     # handle GET request only
     def do_GET(self):
-        global threadWebSocket
-        global request_count
-
-        request_count += 1
         self.send_response(200)
         self.end_headers()
-        self.wfile.write(str.encode("request_count=" + str(request_count)))
+        self.wfile.write(str.encode(getTime()))
         if "?" in self.path:
             # forward to web socket's clients
-            try:
-                threadWebSocket.do_forward_request(self.path)
-            except:
-                print("error in forward_request")
+            threadWebSocket.do_forward_request(self.path)
 
     # handler POST request
-    """
     def do_POST(self):
         content_length = int(self.headers['Content-Length'])
         body = self.rfile.read(content_length)
@@ -111,15 +99,10 @@ class SimpleHTTPRequestHandler(BaseHTTPRequestHandler):
         self.send_response(200)
         self.end_headers()
         self.wfile.write(str.encode("Hell yeah!"))
-    """
 
 
 # Create instance of Web Server
-# print(getTime(), "Web Server is running at port 8000")
+print(getTime(), "Web Server is running at port 8000")
 httpd = HTTPServer(('0.0.0.0', 8000), SimpleHTTPRequestHandler)
-
-# start WebSocketThread
-#threadWebSocket.start()
-
 # start HTTPServer
-#httpd.serve_forever()
+httpd.serve_forever()

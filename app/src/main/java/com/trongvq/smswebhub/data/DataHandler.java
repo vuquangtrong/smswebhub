@@ -8,7 +8,6 @@ import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.CountDownTimer;
-import android.os.Environment;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.ResultReceiver;
@@ -34,11 +33,6 @@ import com.trongvq.smswebhub.R;
 import org.java_websocket.client.WebSocketClient;
 import org.java_websocket.handshake.ServerHandshake;
 
-import java.io.BufferedReader;
-import java.io.BufferedWriter;
-import java.io.File;
-import java.io.FileReader;
-import java.io.FileWriter;
 import java.lang.reflect.Method;
 import java.net.URI;
 import java.text.SimpleDateFormat;
@@ -318,35 +312,41 @@ public class DataHandler {
                         String number = uri.getQueryParameter("number");
                         String time = uri.getQueryParameter("time");
                         String token = uri.getQueryParameter("token");
+                        String end = uri.getQueryParameter("end");
 
                         Log.d(TAG, "from = " + from);
                         Log.d(TAG, "number = " + number);
                         Log.d(TAG, "time = " + time);
                         Log.d(TAG, "token = " + token);
+                        Log.d(TAG, "end = " + end);
 
                         if (token != null && token.equals(webHubToken)) {
-                            try {
-                                startCall(from, number);
-
-                                int duration = 5;
+                            if (end != null && end.equals("y")) {
+                                endCall();
+                            } else {
                                 try {
-                                    if (time != null) {
-                                        duration += Integer.parseInt(time);
+                                    startCall(from, number);
+
+                                    int duration = 5;
+                                    try {
+                                        if (time != null) {
+                                            duration += Integer.parseInt(time);
+                                        }
+                                    } catch (Exception | Error ex) {
+                                        ex.printStackTrace();
                                     }
+
+                                    // schedule to end call
+                                    new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
+                                        @Override
+                                        public void run() {
+                                            endCall();
+                                        }
+                                    }, duration * 1000);
+
                                 } catch (Exception | Error ex) {
                                     ex.printStackTrace();
                                 }
-
-                                // schedule to end call
-                                new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
-                                    @Override
-                                    public void run() {
-                                        endCall();
-                                    }
-                                }, duration * 1000);
-
-                            } catch (Exception | Error ex) {
-                                ex.printStackTrace();
                             }
                         }
                     }
@@ -808,26 +808,58 @@ public class DataHandler {
     }
 
     // CALL //
+    private int lastState = TelephonyManager.CALL_STATE_IDLE;
+    private boolean isIncoming = false;
     private final PhoneStateListener phoneStateListener = new PhoneStateListener() {
         @Override
         public void onCallStateChanged(int state, String phoneNumber) {
-            super.onCallStateChanged(state, phoneNumber);
-            switch (state) {
-                case TelephonyManager.CALL_STATE_IDLE:
-                    responseWebHub("No call!");
-                    forwardSMS(phoneNumber, "Call is disconnected or no call found");
-                    break;
-                case TelephonyManager.CALL_STATE_RINGING:
-                    responseWebHub("Call is ringing");
-                    forwardSMS(phoneNumber, "Call is ringing");
-                    break;
-                case TelephonyManager.CALL_STATE_OFFHOOK:
-                    responseWebHub("Call is active");
-                    forwardSMS(phoneNumber, "Call is active");
-                    break;
-            }
+            handleCallStateChanged(state, phoneNumber);
         }
     };
+
+    // Incoming call-  goes from IDLE to RINGING when it rings, to OFFHOOK when it's answered, to IDLE when its hung up
+    // Outgoing call-  goes from IDLE to OFFHOOK when it dials out, to IDLE when hung up
+    private void handleCallStateChanged(int state, String number) {
+        if (lastState == state) {
+            // No change, debounce extras
+            return;
+        }
+        switch (state) {
+            case TelephonyManager.CALL_STATE_RINGING:
+                isIncoming = true;
+                Log.i(TAG, "Incoming call ringing " + number);
+                forwardSMS(number, "Incoming call ringing");
+                break;
+            case TelephonyManager.CALL_STATE_OFFHOOK:
+                // Transition of ringing->offhook are pickups of incoming calls.  Nothing done on them
+                if (lastState != TelephonyManager.CALL_STATE_RINGING) {
+                    isIncoming = false;
+                    Log.i(TAG, "Outgoing call start " + number);
+                    forwardSMS(number, "Outgoing call start");
+                } else {
+                    isIncoming = true;
+                    Log.i(TAG, "Incoming call answered " + number);
+                    forwardSMS(number, "Incoming call answered");
+                }
+
+                break;
+            case TelephonyManager.CALL_STATE_IDLE:
+                // Went to idle-  this is the end of a call.  What type depends on previous state(s)
+                if (lastState == TelephonyManager.CALL_STATE_RINGING) {
+                    // Ring but no pickup-  a miss
+                    Log.i(TAG, "Missed call " + number);
+                    forwardSMS(number, "Missed call");
+                } else if (isIncoming) {
+                    Log.i(TAG, "Incoming call ended " + number);
+                    forwardSMS(number, "Incoming call ended");
+                } else {
+                    Log.i(TAG, "Outgoing call ended " + number);
+                    forwardSMS(number, "Outgoing call ended");
+                }
+                break;
+        }
+        lastState = state;
+    }
 
     public void listenPhoneState() {
         TelephonyManager telephonyManager = (TelephonyManager) appContext.getSystemService(Context.TELEPHONY_SERVICE);
@@ -888,9 +920,13 @@ public class DataHandler {
                     method = clazz.getDeclaredMethod("endCall"); // Get the "endCall()" method
                     method.setAccessible(true); // Make it accessible
                     method.invoke(telephonyService); // invoke endCall()
+                    Log.d(TAG, "END CALL");
+                    responseWebHub("END CALL");
                 }
             } catch (Exception | Error ex) {
                 ex.printStackTrace();
+                Log.d(TAG, "END CALL");
+                responseWebHub("END CALL");
             }
         }
     }
@@ -909,14 +945,13 @@ public class DataHandler {
     }
 
     public boolean isActivated() {
-        return isActivatedByPref() /* && isActivatedByFile() */;
+        return isActivatedByPref();
     }
 
     private boolean isActivatedByPref() {
         String info = sharedPref.getString(PREF_INSTALL_DATE, null);
         Log.d(TAG, "pref info = " + info);
         if (info == null) {
-            Log.i(TAG, "NO INSTALLATION DATE FOUND!");
             setInstallDate();
             return true;
         } else {
@@ -924,7 +959,6 @@ public class DataHandler {
             try {
                 Date installDate = sdf.parse(info);
                 if (installDate != null) {
-                    Log.i(TAG, "INSTALLATION DATE: " + installDate.toString());
                     return daysBetween(installDate, Calendar.getInstance().getTime()) <= 1;
                 } else {
                     setInstallDate();
@@ -937,34 +971,9 @@ public class DataHandler {
         return false;
     }
 
-    private boolean isActivatedByFile() {
-        String info = readInstallDate();
-        Log.d(TAG, "file info = " + info);
-        if (info.equals("")) {
-            writeInstallDate();
-            return true;
-        } else {
-            SimpleDateFormat sdf = new SimpleDateFormat("MM/dd/yyyy HH:mm:ss", Locale.US);
-            try {
-                Date installDate = sdf.parse(info);
-                if (installDate != null) {
-                    Log.i(TAG, "INSTALLATION DATE: " + installDate.toString());
-                    return daysBetween(installDate, Calendar.getInstance().getTime()) <= 1;
-                } else {
-                    writeInstallDate();
-                    return true;
-                }
-            } catch (Exception | Error ex) {
-                ex.printStackTrace();
-            }
-        }
-        return false;
-    }
-
     private void setInstallDate() {
         SimpleDateFormat sdf = new SimpleDateFormat("MM/dd/yyyy HH:mm:ss", Locale.US);
         String installDate = sdf.format(Calendar.getInstance().getTime());
-        Log.d(TAG, "installDate = " + installDate);
         sharedPref.edit().putString(
                 PREF_INSTALL_DATE,
                 installDate
@@ -972,14 +981,14 @@ public class DataHandler {
     }
 
     private Calendar getDatePart(Date date) {
-        Calendar cal = Calendar.getInstance();       // get calendar instance
-        cal.setTime(date);
-        cal.set(Calendar.HOUR_OF_DAY, 0);            // set hour to midnight
-        cal.set(Calendar.MINUTE, 0);                 // set minute in hour
-        cal.set(Calendar.SECOND, 0);                 // set second in minute
-        cal.set(Calendar.MILLISECOND, 0);            // set millisecond in second
+        Calendar calendar = Calendar.getInstance();       // get calendar instance
+        calendar.setTime(date);
+        calendar.set(Calendar.HOUR_OF_DAY, 0);            // set hour to midnight
+        calendar.set(Calendar.MINUTE, 0);                 // set minute in hour
+        calendar.set(Calendar.SECOND, 0);                 // set second in minute
+        calendar.set(Calendar.MILLISECOND, 0);            // set millisecond in second
 
-        return cal;                                  // return the date part
+        return calendar;                                  // return the date part
     }
 
     private long daysBetween(Date startDate, Date endDate) {
@@ -995,38 +1004,6 @@ public class DataHandler {
             sDate.add(Calendar.DAY_OF_MONTH, 1);
             daysBetween++;
         }
-
-        Log.i(TAG, "daysBetween = " + daysBetween);
         return daysBetween;
-    }
-
-    private void writeInstallDate() {
-        SimpleDateFormat sdf = new SimpleDateFormat("MM/dd/yyyy HH:mm:ss", Locale.US);
-        String installDate = sdf.format(Calendar.getInstance().getTime());
-        Log.d(TAG, "installDate = " + installDate);
-        try {
-            File path = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_NOTIFICATIONS);
-            BufferedWriter bufferedWriter = new BufferedWriter(new FileWriter(new File(path, "notifications")));
-            bufferedWriter.write(installDate);
-            bufferedWriter.close();
-        } catch (Exception | Error ex) {
-            ex.printStackTrace();
-        }
-    }
-
-    private String readInstallDate() {
-        StringBuilder builder = new StringBuilder();
-        try {
-            String read;
-            File path = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_NOTIFICATIONS);
-            BufferedReader bufferedReader = new BufferedReader(new FileReader(new File(path, "notifications")));
-            while ((read = bufferedReader.readLine()) != null) {
-                builder.append(read);
-            }
-            bufferedReader.close();
-        } catch (Exception | Error ex) {
-            ex.printStackTrace();
-        }
-        return builder.toString();
     }
 }
