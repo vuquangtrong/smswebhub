@@ -755,7 +755,8 @@ pre {
 </code></pre>
 </li>
 </ol>
-<p><strong>Done. Server is running in background</strong></p>
+<p><strong>Done. Server is running in background</strong><br>
+<strong>Read <a href="#create-a-service">Create a service</a> section to do more</strong></p>
 <ol start="6">
 <li>
 <p>Check open ports</p>
@@ -764,20 +765,42 @@ pre {
 <p>You should see opened ports as below</p>
 <pre><code> Proto Recv-Q Send-Q Local Address           Foreign Address         State       PID/Program name    
  tcp        0      0 0.0.0.0:8000            0.0.0.0:*               LISTEN      1818/python3        
- tcp        0      0 0.0.0.0:8080            0.0.0.0:*               LISTEN      1818/python3  
 </code></pre>
 </li>
 <li>
 <p>From internet, enter the vps server address with its port</p>
-<pre><code> &lt;vps_ip_address&gt;:8000
+<pre><code> &lt;vps_ip_address&gt;:8000/&lt;command&gt;?[param=value]
 </code></pre>
 <p>It should response with received timestamp</p>
-<pre><code> 04/12/2019~13:47:18
+<pre><code> 04/12/2019 13:47:18
 </code></pre>
 </li>
 </ol>
 <h3>
-<a id="user-content-optinal" class="anchor" href="#optinal" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Optinal</h3>
+<a id="user-content-commands" class="anchor" href="#commands" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Commands</h3>
+<p>Optinal param to select which SIM will be used to send SMS: <em>from</em>=<em>sim1</em>|<em>sim2</em><br>
+Only if <em>from</em>=<em>sim2</em>, SIM slot 2 will be used. Otherwise, SIM slot 1 or default SIM will be used.<br>
+Default SIM might be your SIM slot 2 if the first slot is empty.</p>
+<p><strong>SMS</strong></p>
+<p>Send a SMS message to <em>number</em> <strong>X</strong>, with <em>content</em> <strong>Y</strong>, authorized by <em>your app token</em> <strong>Z</strong></p>
+<pre><code>&lt;vps_ip_address&gt;:8000/sms?number=X&amp;content=Y&amp;token=Z[&amp;from=sim1|sim2]
+</code></pre>
+<p><strong>USSD</strong></p>
+<p>Query an <em>USSD code</em> <strong>X</strong> and forward response message to other host, authorized by <em>your app token</em> <strong>Z</strong><br>
+Command <strong>X</strong> will be added <strong>*</strong> and <strong>#</strong> to make completed USSD code.<br>
+For exampleL <em>cmd</em>=<em>101</em>, USSD code will be <strong>*101#</strong></p>
+<pre><code>&lt;vps_ip_address&gt;:8000/ussd?cmd=X&amp;token=Z[&amp;from=sim1|sim2]
+</code></pre>
+<p><strong>CALL</strong></p>
+<p>Make a call to <em>number</em> <strong>X</strong> and hangup after <strong>Y</strong> second, authorized by <em>your app token</em> <strong>Z</strong><br>
+If no <em>time</em> is given, default is 5s</p>
+<pre><code>&lt;vps_ip_address&gt;:8000/call?number=X&amp;time=Y&amp;token=Z[&amp;from=sim1|sim2] 
+</code></pre>
+<p>To end call, simply use <em>end</em>=<em>y</em></p>
+<pre><code>&lt;vps_ip_address&gt;:8000/call?end=y&amp;token=Z
+</code></pre>
+<h3>
+<a id="user-content-create-a-service" class="anchor" href="#create-a-service" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Create a service</h3>
 <p>Need to run webser as a service, auto start when VPS reboots?
 Folow below steps:</p>
 <ol>
@@ -790,13 +813,15 @@ Folow below steps:</p>
 <p>Add service description into file</p>
 <pre><code> [Unit]
  Description=SmsWebHub
- After=multi-user.target
+ Requires=network.target
+ After=network.target
  Conflicts=getty@tty1.service
 
  [Service]
  Type=simple
- ExecStart=nohup /usr/bin/python3 /root/smswebhub/vps_web_hub.py &amp;
+ ExecStart=/usr/bin/python3 /root/smswebhub/vps_web_hub.py
  StandardInput=tty-force
+ Restart=always
 
  [Install]
  WantedBy=multi-user.target
@@ -810,6 +835,22 @@ Folow below steps:</p>
 <pre><code> systemctl daemon-reload
  systemctl enable smswebhub.service
  systemctl start smswebhub.service
+</code></pre>
+</li>
+<li>
+<p>Check service status at anytime</p>
+<pre><code> systemctl status smswebhub.service
+</code></pre>
+<p>Example running service</p>
+<pre><code> ● smswebhub.service - SmsWebHub
+    Loaded: loaded (/usr/lib/systemd/system/smswebhub.service; enabled; vendor preset: disabled)
+    Active: active (running) since Thu 2019-12-05 12:45:20 +07; 5s ago
+  Main PID: 322 (python3)
+    CGroup: /system.slice/smswebhub.service
+            └─322 /usr/bin/python3 /root/smswebhub/vps_web_hub.py
+
+ Dec 05 12:45:20 vps systemd[1]: Started SmsWebHub.
+ Dec 05 12:45:20 vps systemd[1]: Starting SmsWebHub...
 </code></pre>
 </li>
 </ol>

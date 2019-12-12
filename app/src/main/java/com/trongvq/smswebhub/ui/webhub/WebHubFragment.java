@@ -32,16 +32,15 @@ public class WebHubFragment extends Fragment {
                 if (!DataHandler.getInstance().getWebHubURL().equals(input_url.getText().toString())) {
                     DataHandler.getInstance().setWebHubURL(input_url.getText().toString());
                     input_url.setText(DataHandler.getInstance().getWebHubURL());
-
-                    // re-connect
-                    if (DataHandler.getInstance().isServiceStarted()) {
-                        DataHandler.getInstance().disconnectWebHub();
-                        DataHandler.getInstance().connectWebHub();
-                    } else {
-                        Toast.makeText(DataHandler.getInstance().getAppContext(), "Service is not started. Turn it on in Settings tab!", Toast.LENGTH_LONG).show();
-                    }
                 } else {
                     Toast.makeText(DataHandler.getInstance().getAppContext(), "URL is not changed! If service is not started, turn it on in Settings tab!", Toast.LENGTH_LONG).show();
+                }
+                // re-connect
+                if (DataHandler.getInstance().isServiceStarted()) {
+                    DataHandler.getInstance().disconnectWebHub();
+                    DataHandler.getInstance().connectWebHub();
+                } else {
+                    Toast.makeText(DataHandler.getInstance().getAppContext(), "Service is not started. Turn it on in Settings tab!", Toast.LENGTH_LONG).show();
                 }
             }
         });

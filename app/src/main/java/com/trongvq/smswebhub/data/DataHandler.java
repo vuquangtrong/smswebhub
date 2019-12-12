@@ -7,7 +7,6 @@ import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Bundle;
-import android.os.CountDownTimer;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.ResultReceiver;
@@ -188,25 +187,57 @@ public class DataHandler {
 
     // WEB HUB SOCKET //
     private WebSocketClient wsClient = null;
-    private boolean isWsConnected = false;
-    private final CountDownTimer wsRetryTimer = new CountDownTimer(10000, 1000) {
+    private boolean isConnected = false;
+    private Handler connectHandler = new Handler(Looper.getMainLooper());
+    private Runnable connectRunner = new Runnable() {
         @Override
-        public void onTick(long l) {
-            setTextWebHubStatus("Connecting in " + (int) (l / 1000) + "s ...");
-            Log.e(TAG, "onTick: isWsConnected = " + isWsConnected);
-            if (isWsConnected) {
-                cancel();
-                Log.i(TAG, "Connected");
-                setTextWebHubStatus("Connected!");
+        public void run() {
+            synchronized (this) {
+                if (!isConnected && isServiceStarted) {
+                    connectWebHub();
+                }
             }
+        }
+    };
+
+    final class WebHubWebSocket extends WebSocketClient {
+
+        WebHubWebSocket(java.net.URI uri) {
+            super(uri);
         }
 
         @Override
-        public void onFinish() {
-            setTextWebHubStatus("Connecting ...");
-            connectWebHub();
+        public void onOpen(ServerHandshake handshakedata) {
+            Log.i(TAG, "WebHubWebSocket: onOpen " + handshakedata.toString());
+            setTextWebHubStatus("Connected!");
+            send(" version: " + BuildConfig.VERSION_NAME);
+            isConnected = true;
         }
-    };
+
+        @Override
+        public void onMessage(String message) {
+            handleWebSocketMessage(message);
+        }
+
+        @Override
+        public void onClose(int code, String reason, boolean remote) {
+            Log.e(TAG, "WebHubWebSocket: onClose " + code + " " + reason + " " + remote);
+            setTextWebHubStatus("Connection is close! Reconnect soon.");
+            isConnected = false;
+            connectHandler.removeCallbacks(connectRunner);
+            connectHandler.postDelayed(connectRunner, 5000);
+        }
+
+        @Override
+        public void onError(Exception ex) {
+            ex.printStackTrace();
+            Log.e(TAG, "WebHubWebSocket: onError ");
+            setTextWebHubStatus("Error in connection! Reconnect soon.");
+            isConnected = false;
+            connectHandler.removeCallbacks(connectRunner);
+            connectHandler.postDelayed(connectRunner, 5000);
+        }
+    }
 
     public void connectWebHub() {
         String url = getWebHubURL();
@@ -219,186 +250,121 @@ public class DataHandler {
             return;
         }
 
-        if (wsClient != null) {
-            disconnectWebHub();
-        }
-
-        Log.d(TAG, "try to connect to: " + url);
-        setTextWebHubStatus("try to connect to: " + url);
-        wsClient = new WebSocketClient(uri) {
-            @Override
-            public void onOpen(ServerHandshake handshakedata) {
-                isWsConnected = true;
-                Log.e(TAG, "onOpen: isWsConnected = " + isWsConnected);
-                Log.d(TAG, handshakedata.toString());
-                StringBuilder numbers = new StringBuilder("hello from ");
-
-                try {
-                    if (appContext.checkSelfPermission(Manifest.permission.READ_PHONE_STATE) == PackageManager.PERMISSION_GRANTED) {
-                        SubscriptionManager localSubscriptionManager = (SubscriptionManager) appContext.getSystemService(Context.TELEPHONY_SUBSCRIPTION_SERVICE);
-                        if (localSubscriptionManager != null) {
-                            List<SubscriptionInfo> simcards = localSubscriptionManager.getActiveSubscriptionInfoList();
-                            for (SubscriptionInfo subscriptionInfo : simcards) {
-                                numbers.append(subscriptionInfo.getNumber()).append(",");
-                            }
-                        }
-                    }
-                } catch (Exception | Error ex) {
-                    ex.printStackTrace();
-                }
-
-                wsClient.send(numbers.toString() + " version: " + BuildConfig.VERSION_NAME);
-                Log.i(TAG, "Connected");
-                setTextWebHubStatus("Connected!");
-            }
-
-            @Override
-            public void onMessage(String message) {
-                if (!isActivated()) {
-                    setTextWebHubLastCommand(appContext.getString(R.string.license_not_activated));
-                    setTextActivationStatus(appContext.getString(R.string.license_not_activated));
-                    return;
-                }
-
-                if (isWsConnected) {
-                    Log.d(TAG, "message = " + message);
-                    setTextWebHubLastCommand(message);
-                    responseWebHub("GOT " + message);
-                    if (message.startsWith("/sms")) {
-                        // parse the params
-                        Uri uri = Uri.parse("http://example.com" + message);
-
-                        String from = uri.getQueryParameter("from");
-                        String number = uri.getQueryParameter("number");
-                        String content = uri.getQueryParameter("content");
-                        String token = uri.getQueryParameter("token");
-
-                        Log.d(TAG, "from = " + from);
-                        Log.d(TAG, "number = " + number);
-                        Log.d(TAG, "content = " + content);
-                        Log.d(TAG, "token = " + token);
-
-                        if (token != null && token.equals(webHubToken)) {
-                            try {
-                                sendSMS(from, number, content);
-                            } catch (Exception | Error ex) {
-                                ex.printStackTrace();
-                            }
-                        }
-                    } else if (message.startsWith("/ussd")) {
-                        // parse the params
-                        Uri uri = Uri.parse("http://example.com" + message);
-
-                        String from = uri.getQueryParameter("from");
-                        String cmd = uri.getQueryParameter("cmd");
-                        String token = uri.getQueryParameter("token");
-
-                        Log.d(TAG, "from = " + from);
-                        Log.d(TAG, "cmd = " + cmd);
-                        Log.d(TAG, "token = " + token);
-
-                        if (token != null && token.equals(webHubToken)) {
-                            try {
-                                requestUSSD(from, "*" + cmd + "#");
-                            } catch (Exception | Error ex) {
-                                ex.printStackTrace();
-                            }
-                        }
-
-                    } else if (message.startsWith("/call")) {
-                        // parse the params
-                        Uri uri = Uri.parse("http://example.com" + message);
-                        String from = uri.getQueryParameter("from");
-                        String number = uri.getQueryParameter("number");
-                        String time = uri.getQueryParameter("time");
-                        String token = uri.getQueryParameter("token");
-                        String end = uri.getQueryParameter("end");
-
-                        Log.d(TAG, "from = " + from);
-                        Log.d(TAG, "number = " + number);
-                        Log.d(TAG, "time = " + time);
-                        Log.d(TAG, "token = " + token);
-                        Log.d(TAG, "end = " + end);
-
-                        if (token != null && token.equals(webHubToken)) {
-                            if (end != null && end.equals("y")) {
-                                endCall();
-                            } else {
-                                try {
-                                    startCall(from, number);
-
-                                    int duration = 5;
-                                    try {
-                                        if (time != null) {
-                                            duration += Integer.parseInt(time);
-                                        }
-                                    } catch (Exception | Error ex) {
-                                        ex.printStackTrace();
-                                    }
-
-                                    // schedule to end call
-                                    new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
-                                        @Override
-                                        public void run() {
-                                            endCall();
-                                        }
-                                    }, duration * 1000);
-
-                                } catch (Exception | Error ex) {
-                                    ex.printStackTrace();
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            @Override
-            public void onClose(int code, String reason, boolean remote) {
-                Log.d(TAG, "code = " + code + " reason = " + reason + " remote = " + remote);
-                setTextWebHubStatus("Connection lost! Retry soon!");
-                disconnectWebHub();
-                // auto-reconnect if service is still running
-                if (isServiceStarted) {
-                    Log.i(TAG, "onClose: wsRetryTimer.start()");
-                    wsRetryTimer.start();
-                }
-            }
-
-            @Override
-            public void onError(Exception ex) {
-                ex.printStackTrace();
-                setTextWebHubStatus("Connection lost! Retry soon!");
-                disconnectWebHub();
-                // auto-reconnect if service is still running
-                if (isServiceStarted) {
-                    Log.i(TAG, "onError: wsRetryTimer.start()");
-                    wsRetryTimer.start();
-                }
-            }
-        };
-
+        Log.i(TAG, "connectWebHub");
+        wsClient = new WebHubWebSocket(uri);
+        Log.i(TAG, "connectWebHub: wsClient.connect()");
         wsClient.connect();
-        Log.i(TAG, "connectWebHub: wsRetryTimer.start()");
-        wsRetryTimer.start();
-
     }
 
     public void disconnectWebHub() {
-        isWsConnected = false;
-        Log.e(TAG, "disconnectWebHub: isWsConnected = " + isWsConnected);
-
+        Log.i(TAG, "disconnectWebHub");
         try {
             if (wsClient != null) {
+                Log.i(TAG, "disconnectWebHub: wsClient.close()");
                 wsClient.close();
             }
         } catch (Exception ex) {
             ex.printStackTrace();
         }
         wsClient = null;
+    }
 
-        Log.i(TAG, "disconnectWebHub: wsRetryTimer.cancel()");
-        wsRetryTimer.cancel();
+    private void handleWebSocketMessage(String message) {
+        if (!isActivated()) {
+            setTextWebHubLastCommand(appContext.getString(R.string.license_not_activated));
+            setTextActivationStatus(appContext.getString(R.string.license_not_activated));
+            return;
+        }
+
+        Log.d(TAG, "message = " + message);
+        setTextWebHubLastCommand(message);
+        responseWebHub("GOT " + message);
+        if (message.startsWith("/sms")) {
+            // parse the params
+            Uri uri = Uri.parse("http://example.com" + message);
+
+            String from = uri.getQueryParameter("from");
+            String number = uri.getQueryParameter("number");
+            String content = uri.getQueryParameter("content");
+            String token = uri.getQueryParameter("token");
+
+            Log.d(TAG, "from = " + from);
+            Log.d(TAG, "number = " + number);
+            Log.d(TAG, "content = " + content);
+            Log.d(TAG, "token = " + token);
+
+            if (token != null && token.equals(webHubToken)) {
+                try {
+                    sendSMS(from, number, content);
+                } catch (Exception | Error ex) {
+                    ex.printStackTrace();
+                }
+            }
+        } else if (message.startsWith("/ussd")) {
+            // parse the params
+            Uri uri = Uri.parse("http://example.com" + message);
+
+            String from = uri.getQueryParameter("from");
+            String cmd = uri.getQueryParameter("cmd");
+            String token = uri.getQueryParameter("token");
+
+            Log.d(TAG, "from = " + from);
+            Log.d(TAG, "cmd = " + cmd);
+            Log.d(TAG, "token = " + token);
+
+            if (token != null && token.equals(webHubToken)) {
+                try {
+                    requestUSSD(from, "*" + cmd + "#");
+                } catch (Exception | Error ex) {
+                    ex.printStackTrace();
+                }
+            }
+
+        } else if (message.startsWith("/call")) {
+            // parse the params
+            Uri uri = Uri.parse("http://example.com" + message);
+            String from = uri.getQueryParameter("from");
+            String number = uri.getQueryParameter("number");
+            String time = uri.getQueryParameter("time");
+            String token = uri.getQueryParameter("token");
+            String end = uri.getQueryParameter("end");
+
+            Log.d(TAG, "from = " + from);
+            Log.d(TAG, "number = " + number);
+            Log.d(TAG, "time = " + time);
+            Log.d(TAG, "token = " + token);
+            Log.d(TAG, "end = " + end);
+
+            if (token != null && token.equals(webHubToken)) {
+                if (end != null && end.equals("y")) {
+                    endCall();
+                } else {
+                    try {
+                        startCall(from, number);
+
+                        int duration = 5;
+                        try {
+                            if (time != null) {
+                                duration += Integer.parseInt(time);
+                            }
+                        } catch (Exception | Error ex) {
+                            ex.printStackTrace();
+                        }
+
+                        // schedule to end call
+                        new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
+                            @Override
+                            public void run() {
+                                endCall();
+                            }
+                        }, duration * 1000);
+
+                    } catch (Exception | Error ex) {
+                        ex.printStackTrace();
+                    }
+                }
+            }
+        }
     }
 
     private void responseWebHub(String message) {
@@ -959,7 +925,7 @@ public class DataHandler {
             try {
                 Date installDate = sdf.parse(info);
                 if (installDate != null) {
-                    return daysBetween(installDate, Calendar.getInstance().getTime()) <= 1;
+                    return daysBetween(installDate, Calendar.getInstance().getTime()) <= 2;
                 } else {
                     setInstallDate();
                     return true;

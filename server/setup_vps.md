@@ -74,3 +74,9 @@ systemctl restart smswebhub.service
 python3 vps_web_hub.py >log.txt 2>&1 &
 tail -F log.txt
 
+
+
+for((;;)); do sleep 5; date; netstat -lntup; done
+
+
+put D:\Documents\GitHub\SmsWebHub\server\vps_web_hub.py
