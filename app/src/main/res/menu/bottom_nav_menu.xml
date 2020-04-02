@@ -12,6 +12,11 @@
         android:title="@string/title_sms_forward" />
 
     <item
+        android:id="@+id/navigation_notification_forward"
+        android:icon="@drawable/ic_notification_black_24dp"
+        android:title="@string/title_notification_forward" />
+
+    <item
         android:id="@+id/navigation_settings"
         android:icon="@drawable/ic_settings_black_24dp"
         android:title="@string/title_settings" />

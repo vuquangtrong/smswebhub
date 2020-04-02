@@ -54,7 +54,7 @@ public class WebHubFragment extends Fragment {
             public void onClick(View view) {
                 if (!DataHandler.getInstance().getWebHubToken().equals(input_token.getText().toString())) {
                     DataHandler.getInstance().setWebHubToken(input_token.getText().toString());
-                    Toast.makeText(DataHandler.getInstance().getAppContext(), "New token will be sent to your Web Hub VPS", Toast.LENGTH_LONG).show();
+                    Toast.makeText(DataHandler.getInstance().getAppContext(), "New token is applied on your mobile!", Toast.LENGTH_LONG).show();
                 } else {
                     Toast.makeText(DataHandler.getInstance().getAppContext(), "Token is not changed!", Toast.LENGTH_LONG).show();
                 }

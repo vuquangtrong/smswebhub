@@ -25,16 +25,16 @@ public class SmsForwardFragment extends Fragment {
         input_url.setText(DataHandler.getInstance().getSmsRedirectURL());
 
         final EditText input_prefix_sender = root.findViewById(R.id.input_prefix_sender);
-        input_prefix_sender.setText(DataHandler.getInstance().getPrefixSender());
+        input_prefix_sender.setText(DataHandler.getInstance().getSmsPrefixSender());
 
         final EditText input_prefix_content = root.findViewById(R.id.input_prefix_content);
-        input_prefix_content.setText(DataHandler.getInstance().getPrefixContent());
+        input_prefix_content.setText(DataHandler.getInstance().getSmsPrefixContent());
 
         final EditText input_prefix_time = root.findViewById(R.id.input_prefix_time);
-        input_prefix_time.setText(DataHandler.getInstance().getPrefixTime());
+        input_prefix_time.setText(DataHandler.getInstance().getSmsPrefixTime());
 
         final EditText input_prefix_token = root.findViewById(R.id.input_prefix_token);
-        input_prefix_token.setText(DataHandler.getInstance().getPrefixToken());
+        input_prefix_token.setText(DataHandler.getInstance().getSmsPrefixToken());
 
         final EditText input_token = root.findViewById(R.id.input_token);
         input_token.setText(DataHandler.getInstance().getSmsToken());
@@ -46,10 +46,10 @@ public class SmsForwardFragment extends Fragment {
                 DataHandler.getInstance().setSmsRedirectURL(input_url.getText().toString());
                 input_url.setText(DataHandler.getInstance().getSmsRedirectURL());
 
-                DataHandler.getInstance().setPrefixSender(input_prefix_sender.getText().toString());
-                DataHandler.getInstance().setPrefixContent(input_prefix_content.getText().toString());
-                DataHandler.getInstance().setPrefixTime(input_prefix_time.getText().toString());
-                DataHandler.getInstance().setPrefixToken(input_prefix_token.getText().toString());
+                DataHandler.getInstance().setSmsPrefixSender(input_prefix_sender.getText().toString());
+                DataHandler.getInstance().setSmsPrefixContent(input_prefix_content.getText().toString());
+                DataHandler.getInstance().setSmsPrefixTime(input_prefix_time.getText().toString());
+                DataHandler.getInstance().setSmsPrefixToken(input_prefix_token.getText().toString());
                 DataHandler.getInstance().setSmsToken(input_token.getText().toString());
                 updatePreview();
             }
@@ -73,10 +73,10 @@ public class SmsForwardFragment extends Fragment {
         text_guide_preview_request.setText(
                 String.format("%s/?%s={number}&%s={content}&%s={time}&%s=%s",
                         DataHandler.getInstance().getSmsRedirectURL(),
-                        DataHandler.getInstance().getPrefixSender(),
-                        DataHandler.getInstance().getPrefixContent(),
-                        DataHandler.getInstance().getPrefixTime(),
-                        DataHandler.getInstance().getPrefixToken(),
+                        DataHandler.getInstance().getSmsPrefixSender(),
+                        DataHandler.getInstance().getSmsPrefixContent(),
+                        DataHandler.getInstance().getSmsPrefixTime(),
+                        DataHandler.getInstance().getSmsPrefixToken(),
                         DataHandler.getInstance().getSmsToken()
                 )
         );

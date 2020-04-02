@@ -18,6 +18,12 @@
         tools:layout="@layout/fragment_sms_forward" />
 
     <fragment
+        android:id="@+id/navigation_notification_forward"
+        android:name="com.trongvq.smswebhub.ui.notificationforward.NotificationForwardFragment"
+        android:label="@string/title_notification_forward"
+        tools:layout="@layout/fragment_notification_forward" />
+
+    <fragment
         android:id="@+id/navigation_settings"
         android:name="com.trongvq.smswebhub.ui.settings.SettingsFragment"
         android:label="@string/title_settings"

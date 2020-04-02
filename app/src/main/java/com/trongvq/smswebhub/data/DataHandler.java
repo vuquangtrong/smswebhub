@@ -1,9 +1,11 @@
 package com.trongvq.smswebhub.data;
 
 import android.Manifest;
+import android.app.Notification;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Bundle;
@@ -44,6 +46,16 @@ import java.util.Map;
 
 public class DataHandler {
     private final String TAG = DataHandler.class.getSimpleName();
+    public static final String[] wantedPermissions = {
+            Manifest.permission.RECEIVE_BOOT_COMPLETED,
+            Manifest.permission.READ_PHONE_STATE,
+            Manifest.permission.CALL_PHONE,
+            Manifest.permission.SEND_SMS,
+            Manifest.permission.RECEIVE_SMS,
+            Manifest.permission.INTERNET,
+//            Manifest.permission.READ_EXTERNAL_STORAGE,
+//            Manifest.permission.WRITE_EXTERNAL_STORAGE
+    };
 
     // SINGLETON //
     private DataHandler() {
@@ -58,7 +70,12 @@ public class DataHandler {
         return ourInstance;
     }
 
+    // APP CONTEXT //
     private Context appContext = null;
+
+    public Context getAppContext() {
+        return appContext;
+    }
 
     // INITIAL //
     public void init(Context context) {
@@ -77,20 +94,27 @@ public class DataHandler {
         loadData();
     }
 
-    public Context getAppContext() {
-        return appContext;
-    }
-
     private void loadData() {
         Log.d(TAG, "load saved settings");
+
         loadWebHubURL();
         loadWebHubToken();
+
         loadSmsRedirectURL();
-        loadPrefixSender();
-        loadPrefixContent();
-        loadPrefixTime();
-        loadPrefixToken();
+        loadSmsPrefixSender();
+        loadSmsPrefixContent();
+        loadSmsPrefixTime();
+        loadSmsPrefixToken();
         loadSmsToken();
+
+
+        loadNotiRedirectURL();
+        loadNotiPrefixApp();
+        loadNotiPrefixTitle();
+        loadNotiPrefixContent();
+        loadNotiPrefixTime();
+        loadNotiPrefixToken();
+        loadNotiToken();
     }
 
     // SHARED PREFERENCE //
@@ -270,12 +294,6 @@ public class DataHandler {
     }
 
     private void handleWebSocketMessage(String message) {
-        if (!isActivated()) {
-            setTextWebHubLastCommand(appContext.getString(R.string.license_not_activated));
-            setTextActivationStatus(appContext.getString(R.string.license_not_activated));
-            return;
-        }
-
         Log.d(TAG, "message = " + message);
         setTextWebHubLastCommand(message);
         responseWebHub("GOT " + message);
@@ -398,174 +416,6 @@ public class DataHandler {
         textWebHubLastCommand.postValue(text);
     }
 
-    // SMS FORWARD CONFIGS //
-    private static final String PREF_SMS_REDIRECT_URL = PREF + "smsredirect_url";
-    private static final String PREF_PREFIX_SENDER = PREF + "prefix_sender";
-    private static final String PREF_PREFIX_CONTENT = PREF + "prefix_content";
-    private static final String PREF_PREFIX_TIME = PREF + "prefix_time";
-    private static final String PREF_PREFIX_TOKEN = PREF + "prefix_token";
-    private static final String PREF_SMS_TOKEN = PREF + "sms_token";
-    private String SmsRedirectURL = "http://103.104.119.189:8000";
-    private String PrefixSender = "sender";
-    private String PrefixContent = "content";
-    private String PrefixTime = "time";
-    private String PrefixToken = "token";
-    private String SmsToken = "secret";
-
-    //
-    public String getSmsRedirectURL() {
-        return SmsRedirectURL;
-    }
-
-    public void setSmsRedirectURL(String url) {
-        if (!url.startsWith("http://")) {
-            SmsRedirectURL = "http://" + url;
-        } else {
-            SmsRedirectURL = url;
-        }
-        saveSmsRedirectURL();
-    }
-
-    private void saveSmsRedirectURL() {
-        sharedPref.edit().putString(
-                PREF_SMS_REDIRECT_URL,
-                SmsRedirectURL
-        ).apply();
-    }
-
-    private void loadSmsRedirectURL() {
-        String info = sharedPref.getString(PREF_SMS_REDIRECT_URL, null);
-        if (info != null) {
-            SmsRedirectURL = info;
-        }
-        Log.d(TAG, "SmsRedirectURL = " + SmsRedirectURL);
-    }
-
-    //
-    public String getPrefixSender() {
-        return PrefixSender;
-    }
-
-    public void setPrefixSender(String info) {
-        PrefixSender = info;
-        savePrefixSender();
-    }
-
-    private void savePrefixSender() {
-        sharedPref.edit().putString(
-                PREF_PREFIX_SENDER,
-                PrefixSender
-        ).apply();
-    }
-
-    private void loadPrefixSender() {
-        String info = sharedPref.getString(PREF_PREFIX_SENDER, null);
-        if (info != null) {
-            PrefixSender = info;
-        }
-        Log.d(TAG, "PrefixSender = " + PrefixSender);
-    }
-
-    //
-    public String getPrefixContent() {
-        return PrefixContent;
-    }
-
-    public void setPrefixContent(String info) {
-        PrefixContent = info;
-        savePrefixContent();
-    }
-
-    private void savePrefixContent() {
-        sharedPref.edit().putString(
-                PREF_PREFIX_CONTENT,
-                PrefixContent
-        ).apply();
-    }
-
-    private void loadPrefixContent() {
-        String info = sharedPref.getString(PREF_PREFIX_CONTENT, null);
-        if (info != null) {
-            PrefixContent = info;
-        }
-        Log.d(TAG, "PrefixContent = " + PrefixContent);
-    }
-
-    //
-    public String getPrefixTime() {
-        return PrefixTime;
-    }
-
-    public void setPrefixTime(String info) {
-        PrefixTime = info;
-        savePrefixTime();
-    }
-
-    private void savePrefixTime() {
-        sharedPref.edit().putString(
-                PREF_PREFIX_TIME,
-                PrefixTime
-        ).apply();
-    }
-
-    private void loadPrefixTime() {
-        String info = sharedPref.getString(PREF_PREFIX_TIME, null);
-        if (info != null) {
-            PrefixTime = info;
-        }
-        Log.d(TAG, "PrefixTime = " + PrefixTime);
-    }
-
-    //
-    public String getPrefixToken() {
-        return PrefixToken;
-    }
-
-    public void setPrefixToken(String info) {
-        PrefixToken = info;
-        savePrefixToken();
-    }
-
-    private void savePrefixToken() {
-        sharedPref.edit().putString(
-                PREF_PREFIX_TOKEN,
-                PrefixToken
-        ).apply();
-    }
-
-    private void loadPrefixToken() {
-        String info = sharedPref.getString(PREF_PREFIX_TOKEN, null);
-        if (info != null) {
-            PrefixToken = info;
-        }
-        Log.d(TAG, "PrefixToken = " + PrefixToken);
-    }
-
-    //
-    public String getSmsToken() {
-        return SmsToken;
-    }
-
-    public void setSmsToken(String info) {
-        SmsToken = info;
-        saveSmsToken();
-    }
-
-    private void saveSmsToken() {
-        sharedPref.edit().putString(
-                PREF_SMS_TOKEN,
-                SmsToken
-        ).apply();
-    }
-
-    private void loadSmsToken() {
-        String info = sharedPref.getString(PREF_SMS_TOKEN, null);
-        if (info != null) {
-            SmsToken = info;
-        }
-        Log.d(TAG, "SmsToken = " + SmsToken);
-    }
-
     // SMS SEND //
     private void sendSMS(final String from, final String number, final String content) {
         if (number != null && content != null) {
@@ -603,6 +453,174 @@ public class DataHandler {
         }
     }
 
+    // SMS FORWARD CONFIGS //
+    private static final String PREF_SMS_REDIRECT_URL = PREF + "smsredirect_url";
+    private static final String PREF_SMS_PREFIX_SENDER = PREF + "prefix_sender";
+    private static final String PREF_SMS_PREFIX_CONTENT = PREF + "prefix_content";
+    private static final String PREF_SMS_PREFIX_TIME = PREF + "prefix_time";
+    private static final String PREF_SMS_PREFIX_TOKEN = PREF + "prefix_token";
+    private static final String PREF_SMS_TOKEN = PREF + "sms_token";
+    private String SmsRedirectURL = "http://103.104.119.189:8000";
+    private String SmsPrefixSender = "sender";
+    private String SmsPrefixContent = "content";
+    private String SmsPrefixTime = "time";
+    private String SmsPrefixToken = "token";
+    private String SmsToken = "secret";
+
+    //
+    public String getSmsRedirectURL() {
+        return SmsRedirectURL;
+    }
+
+    public void setSmsRedirectURL(String url) {
+        if (!url.startsWith("http://")) {
+            SmsRedirectURL = "http://" + url;
+        } else {
+            SmsRedirectURL = url;
+        }
+        saveSmsRedirectURL();
+    }
+
+    private void saveSmsRedirectURL() {
+        sharedPref.edit().putString(
+                PREF_SMS_REDIRECT_URL,
+                SmsRedirectURL
+        ).apply();
+    }
+
+    private void loadSmsRedirectURL() {
+        String info = sharedPref.getString(PREF_SMS_REDIRECT_URL, null);
+        if (info != null) {
+            SmsRedirectURL = info;
+        }
+        Log.d(TAG, "SmsRedirectURL = " + SmsRedirectURL);
+    }
+
+    //
+    public String getSmsPrefixSender() {
+        return SmsPrefixSender;
+    }
+
+    public void setSmsPrefixSender(String info) {
+        SmsPrefixSender = info;
+        saveSmsPrefixSender();
+    }
+
+    private void saveSmsPrefixSender() {
+        sharedPref.edit().putString(
+                PREF_SMS_PREFIX_SENDER,
+                SmsPrefixSender
+        ).apply();
+    }
+
+    private void loadSmsPrefixSender() {
+        String info = sharedPref.getString(PREF_SMS_PREFIX_SENDER, null);
+        if (info != null) {
+            SmsPrefixSender = info;
+        }
+        Log.d(TAG, "PrefixSender = " + SmsPrefixSender);
+    }
+
+    //
+    public String getSmsPrefixContent() {
+        return SmsPrefixContent;
+    }
+
+    public void setSmsPrefixContent(String info) {
+        SmsPrefixContent = info;
+        saveSmsPrefixContent();
+    }
+
+    private void saveSmsPrefixContent() {
+        sharedPref.edit().putString(
+                PREF_SMS_PREFIX_CONTENT,
+                SmsPrefixContent
+        ).apply();
+    }
+
+    private void loadSmsPrefixContent() {
+        String info = sharedPref.getString(PREF_SMS_PREFIX_CONTENT, null);
+        if (info != null) {
+            SmsPrefixContent = info;
+        }
+        Log.d(TAG, "PrefixContent = " + SmsPrefixContent);
+    }
+
+    //
+    public String getSmsPrefixTime() {
+        return SmsPrefixTime;
+    }
+
+    public void setSmsPrefixTime(String info) {
+        SmsPrefixTime = info;
+        saveSmsPrefixTime();
+    }
+
+    private void saveSmsPrefixTime() {
+        sharedPref.edit().putString(
+                PREF_SMS_PREFIX_TIME,
+                SmsPrefixTime
+        ).apply();
+    }
+
+    private void loadSmsPrefixTime() {
+        String info = sharedPref.getString(PREF_SMS_PREFIX_TIME, null);
+        if (info != null) {
+            SmsPrefixTime = info;
+        }
+        Log.d(TAG, "PrefixTime = " + SmsPrefixTime);
+    }
+
+    //
+    public String getSmsPrefixToken() {
+        return SmsPrefixToken;
+    }
+
+    public void setSmsPrefixToken(String info) {
+        SmsPrefixToken = info;
+        saveSmsPrefixToken();
+    }
+
+    private void saveSmsPrefixToken() {
+        sharedPref.edit().putString(
+                PREF_SMS_PREFIX_TOKEN,
+                SmsPrefixToken
+        ).apply();
+    }
+
+    private void loadSmsPrefixToken() {
+        String info = sharedPref.getString(PREF_SMS_PREFIX_TOKEN, null);
+        if (info != null) {
+            SmsPrefixToken = info;
+        }
+        Log.d(TAG, "PrefixToken = " + SmsPrefixToken);
+    }
+
+    //
+    public String getSmsToken() {
+        return SmsToken;
+    }
+
+    public void setSmsToken(String info) {
+        SmsToken = info;
+        saveSmsToken();
+    }
+
+    private void saveSmsToken() {
+        sharedPref.edit().putString(
+                PREF_SMS_TOKEN,
+                SmsToken
+        ).apply();
+    }
+
+    private void loadSmsToken() {
+        String info = sharedPref.getString(PREF_SMS_TOKEN, null);
+        if (info != null) {
+            SmsToken = info;
+        }
+        Log.d(TAG, "SmsToken = " + SmsToken);
+    }
+
     // SMS FORWARD //
     private final MutableLiveData<String> textLastForwardedData = new MutableLiveData<>();
 
@@ -615,18 +633,12 @@ public class DataHandler {
     }
 
     public void forwardSMS(final String sender, final String content) {
-        if (!isActivated()) {
-            setTextLastForwardedData(appContext.getString(R.string.license_not_activated));
-            setTextActivationStatus(appContext.getString(R.string.license_not_activated));
-            return;
-        }
-
         final Date date = Calendar.getInstance().getTime();
         final SimpleDateFormat dateFormat = new SimpleDateFormat("yyyyMMdd_hhmmss", Locale.getDefault());
-        final String message = PrefixSender + "=" + sender + "&" +
-                PrefixContent + "=" + content + "&" +
-                PrefixTime + "=" + dateFormat.format(date) + "&" +
-                PrefixToken + "=" + SmsToken;
+        final String message = SmsPrefixSender + "=" + sender + "&" +
+                SmsPrefixContent + "=" + content + "&" +
+                SmsPrefixTime + "=" + dateFormat.format(date) + "&" +
+                SmsPrefixToken + "=" + SmsToken;
 
         // Instantiate the RequestQueue.
         RequestQueue queue = Volley.newRequestQueue(appContext);
@@ -654,10 +666,10 @@ public class DataHandler {
             @Override
             protected Map<String, String> getParams() {
                 Map<String, String> params = new HashMap<>();
-                params.put(PrefixSender, sender);
-                params.put(PrefixContent, content);
-                params.put(PrefixTime, dateFormat.format(date));
-                params.put(PrefixToken, SmsToken);
+                params.put(SmsPrefixSender, sender);
+                params.put(SmsPrefixContent, content);
+                params.put(SmsPrefixTime, dateFormat.format(date));
+                params.put(SmsPrefixToken, SmsToken);
                 return params;
             }
         };
@@ -897,79 +909,304 @@ public class DataHandler {
         }
     }
 
-    // ACTIVATION //
-    private static final String PREF_INSTALL_DATE = PREF + "install_date";
+    // NOTI FORWARD CONFIGS //
+    private static final String PREF_NOTI_REDIRECT_URL = PREF + "noti_redirect_url";
+    private static final String PREF_NOTI_PREFIX_APP = PREF + "noti_prefix_app";
+    private static final String PREF_NOTI_PREFIX_TITLE = PREF + "noti_prefix_title";
+    private static final String PREF_NOTI_PREFIX_CONTENT = PREF + "noti_prefix_content";
+    private static final String PREF_NOTI_PREFIX_TIME = PREF + "noti_prefix_time";
+    private static final String PREF_NOTI_PREFIX_TOKEN = PREF + "noti_prefix_token";
+    private static final String PREF_NOTI_TOKEN = PREF + "noti_token";
+    private String NotiRedirectURL = "http://103.104.119.189:8000";
+    private String NotiPrefixApp = "app";
+    private String NotiPrefixTitle = "title";
+    private String NotiPrefixContent = "content";
+    private String NotiPrefixTime = "time";
+    private String NotiPrefixToken = "token";
+    private String NotiToken = "secret";
 
-    private final MutableLiveData<String> textActivationStatus = new MutableLiveData<>();
-
-    public LiveData<String> getTextActivationStatus() {
-        return textActivationStatus;
+    //
+    public String getNotiRedirectURL() {
+        return NotiRedirectURL;
     }
 
-    public void setTextActivationStatus(String text) {
-        textActivationStatus.postValue(text);
-    }
-
-    public boolean isActivated() {
-        return isActivatedByPref();
-    }
-
-    private boolean isActivatedByPref() {
-        String info = sharedPref.getString(PREF_INSTALL_DATE, null);
-        Log.d(TAG, "pref info = " + info);
-        if (info == null) {
-            setInstallDate();
-            return true;
+    public void setNotiRedirectURL(String url) {
+        if (!url.startsWith("http://")) {
+            NotiRedirectURL = "http://" + url;
         } else {
-            SimpleDateFormat sdf = new SimpleDateFormat("MM/dd/yyyy HH:mm:ss", Locale.US);
-            try {
-                Date installDate = sdf.parse(info);
-                if (installDate != null) {
-                    return daysBetween(installDate, Calendar.getInstance().getTime()) <= 2;
-                } else {
-                    setInstallDate();
-                    return true;
-                }
-            } catch (Exception | Error ex) {
-                ex.printStackTrace();
-            }
+            NotiRedirectURL = url;
         }
-        return false;
+        saveNotiRedirectURL();
     }
 
-    private void setInstallDate() {
-        SimpleDateFormat sdf = new SimpleDateFormat("MM/dd/yyyy HH:mm:ss", Locale.US);
-        String installDate = sdf.format(Calendar.getInstance().getTime());
+    private void saveNotiRedirectURL() {
         sharedPref.edit().putString(
-                PREF_INSTALL_DATE,
-                installDate
+                PREF_NOTI_REDIRECT_URL,
+                NotiRedirectURL
         ).apply();
     }
 
-    private Calendar getDatePart(Date date) {
-        Calendar calendar = Calendar.getInstance();       // get calendar instance
-        calendar.setTime(date);
-        calendar.set(Calendar.HOUR_OF_DAY, 0);            // set hour to midnight
-        calendar.set(Calendar.MINUTE, 0);                 // set minute in hour
-        calendar.set(Calendar.SECOND, 0);                 // set second in minute
-        calendar.set(Calendar.MILLISECOND, 0);            // set millisecond in second
-
-        return calendar;                                  // return the date part
+    private void loadNotiRedirectURL() {
+        String info = sharedPref.getString(PREF_NOTI_REDIRECT_URL, null);
+        if (info != null) {
+            NotiRedirectURL = info;
+        }
+        Log.d(TAG, "NotiRedirectURL = " + NotiRedirectURL);
     }
 
-    private long daysBetween(Date startDate, Date endDate) {
-        Calendar sDate = getDatePart(startDate);
-        Calendar eDate = getDatePart(endDate);
-        long daysBetween = 0;
+    //
+    public String getNotiPrefixApp() {
+        return NotiPrefixApp;
+    }
 
-        if (sDate.after(eDate)) {
-            daysBetween = 365;
-        }
+    public void setNotiPrefixApp(String info) {
+        NotiPrefixApp = info;
+        saveNotiPrefixApp();
+    }
 
-        while (sDate.before(eDate)) {
-            sDate.add(Calendar.DAY_OF_MONTH, 1);
-            daysBetween++;
+    private void saveNotiPrefixApp() {
+        sharedPref.edit().putString(
+                PREF_NOTI_PREFIX_APP,
+                NotiPrefixApp
+        ).apply();
+    }
+
+    private void loadNotiPrefixApp() {
+        String info = sharedPref.getString(PREF_NOTI_PREFIX_APP, null);
+        if (info != null) {
+            NotiPrefixApp = info;
         }
-        return daysBetween;
+        Log.d(TAG, "NotiPrefixApp = " + NotiPrefixApp);
+    }
+
+    //
+    public String getNotiPrefixTitle() {
+        return NotiPrefixTitle;
+    }
+
+    public void setNotiPrefixTitle(String info) {
+        NotiPrefixTitle = info;
+        saveNotiPrefixTitle();
+    }
+
+    private void saveNotiPrefixTitle() {
+        sharedPref.edit().putString(
+                PREF_NOTI_PREFIX_TITLE,
+                NotiPrefixTitle
+        ).apply();
+    }
+
+    private void loadNotiPrefixTitle() {
+        String info = sharedPref.getString(PREF_NOTI_PREFIX_TITLE, null);
+        if (info != null) {
+            NotiPrefixTitle = info;
+        }
+        Log.d(TAG, "NotiPrefixTitle = " + NotiPrefixTitle);
+    }
+
+    //
+    public String getNotiPrefixContent() {
+        return NotiPrefixContent;
+    }
+
+    public void setNotiPrefixContent(String info) {
+        NotiPrefixContent = info;
+        saveNotiPrefixContent();
+    }
+
+    private void saveNotiPrefixContent() {
+        sharedPref.edit().putString(
+                PREF_NOTI_PREFIX_CONTENT,
+                NotiPrefixContent
+        ).apply();
+    }
+
+    private void loadNotiPrefixContent() {
+        String info = sharedPref.getString(PREF_NOTI_PREFIX_CONTENT, null);
+        if (info != null) {
+            NotiPrefixContent = info;
+        }
+        Log.d(TAG, "NotiPrefixContent = " + NotiPrefixContent);
+    }
+
+    //
+    public String getNotiPrefixTime() {
+        return NotiPrefixTime;
+    }
+
+    public void setNotiPrefixTime(String info) {
+        NotiPrefixTime = info;
+        saveNotiPrefixTime();
+    }
+
+    private void saveNotiPrefixTime() {
+        sharedPref.edit().putString(
+                PREF_NOTI_PREFIX_TIME,
+                NotiPrefixTime
+        ).apply();
+    }
+
+    private void loadNotiPrefixTime() {
+        String info = sharedPref.getString(PREF_NOTI_PREFIX_TIME, null);
+        if (info != null) {
+            NotiPrefixTime = info;
+        }
+        Log.d(TAG, "NotiPrefixTime = " + NotiPrefixTime);
+    }
+
+    //
+    public String getNotiPrefixToken() {
+        return NotiPrefixToken;
+    }
+
+    public void setNotiPrefixToken(String info) {
+        NotiPrefixToken = info;
+        saveNotiPrefixToken();
+    }
+
+    private void saveNotiPrefixToken() {
+        sharedPref.edit().putString(
+                PREF_NOTI_PREFIX_TOKEN,
+                NotiPrefixToken
+        ).apply();
+    }
+
+    private void loadNotiPrefixToken() {
+        String info = sharedPref.getString(PREF_NOTI_PREFIX_TOKEN, null);
+        if (info != null) {
+            NotiPrefixToken = info;
+        }
+        Log.d(TAG, "NotiPrefixToken = " + NotiPrefixToken);
+    }
+
+    //
+    public String getNotiToken() {
+        return NotiToken;
+    }
+
+    public void setNotiToken(String info) {
+        NotiToken = info;
+        saveNotiToken();
+    }
+
+    private void saveNotiToken() {
+        sharedPref.edit().putString(
+                PREF_NOTI_TOKEN,
+                NotiToken
+        ).apply();
+    }
+
+    private void loadNotiToken() {
+        String info = sharedPref.getString(PREF_NOTI_TOKEN, null);
+        if (info != null) {
+            NotiToken = info;
+        }
+        Log.d(TAG, "NotiToken = " + NotiToken);
+    }
+
+    // NOTIFICATION FORWARD //
+    public void forwardNotification(final String packageName, long postTime, Notification notification) {
+        final Date date = new Date(postTime);
+        final SimpleDateFormat dateFormat = new SimpleDateFormat("yyyyMMdd_hhmmss", Locale.getDefault());
+
+        Log.i(TAG, notification.extras.toString());
+        appendLog(notification.extras.toString());
+
+        final String app = getApplicationName(packageName);
+
+        CharSequence charSequence;
+
+        charSequence = notification.extras.getCharSequence(Notification.EXTRA_TITLE);
+        final String title = charSequence != null ? String.valueOf(charSequence) : "none";
+
+        charSequence = notification.extras.getCharSequence(Notification.EXTRA_TEXT);
+        final String content = charSequence != null ? String.valueOf(charSequence) : "none";
+
+        final String message = NotiPrefixApp + "=" + app + "&" +
+                NotiPrefixTitle + "=" + title + "&" +
+                NotiPrefixContent + "=" + content + "&" +
+                NotiPrefixTime + "=" + dateFormat.format(date) + "&" +
+                NotiPrefixToken + "=" + NotiToken;
+
+
+
+        // Instantiate the RequestQueue.
+        RequestQueue queue = Volley.newRequestQueue(appContext);
+
+        // Request a string response from the provided UrlForRedirect.
+        StringRequest stringRequest = new StringRequest(
+                Request.Method.POST,
+                NotiRedirectURL,
+                new Response.Listener<String>() {
+                    @Override
+                    public void onResponse(String response) {
+                        Log.i(TAG, "Notification forwarded! " + response + " " + message);
+                        responseWebHub("Notification forwarded! " + response + " " + message);
+                        setTextLastForwardedData(message);
+                    }
+                },
+                new Response.ErrorListener() {
+                    @Override
+                    public void onErrorResponse(VolleyError error) {
+                        Log.e(TAG, "Cannot forward Notification content! " + error.toString() + " " + message);
+                        responseWebHub("Cannot forward Notification content! " + error.toString() + " " + message);
+                    }
+                }
+        ) {
+            @Override
+            protected Map<String, String> getParams() {
+                Map<String, String> params = new HashMap<>();
+                params.put(NotiPrefixApp, app);
+                params.put(NotiPrefixTitle, title);
+                params.put(NotiPrefixContent, content);
+                params.put(NotiPrefixTime, dateFormat.format(date));
+                params.put(NotiPrefixToken, NotiToken);
+                return params;
+            }
+        };
+
+        // Add the request to the RequestQueue.
+        Log.d(TAG, "insert Notification to queue");
+        queue.add(stringRequest);
+    }
+
+    // HELPER //
+    private final MutableLiveData<String> textLog = new MutableLiveData<>();
+
+    public LiveData<String> getTextLog() {
+        return textLog;
+    }
+
+    private void setTextLog(String text) {
+        textLog.postValue(text);
+    }
+
+    private static String log = "";
+
+    public void clearLog() {
+        log = "";
+        setTextLog(log);
+    }
+
+    public String getLog() {
+        return log;
+    }
+
+    private void appendLog(String s) {
+        log += s + "\n\n";
+        if (log.length() > 24000) {
+            log = log.substring(log.length() - 24000);
+        }
+        setTextLog(log);
+    }
+
+    private String getApplicationName(String packageName) {
+        PackageManager packageManager = appContext.getPackageManager();
+        ApplicationInfo applicationInfo = null;
+        try {
+            applicationInfo = packageManager.getApplicationInfo(packageName, 0);
+        } catch (Exception ignore) {
+        }
+        return (String) ((applicationInfo != null) ? packageManager.getApplicationLabel(applicationInfo) : "Unknown");
     }
 }

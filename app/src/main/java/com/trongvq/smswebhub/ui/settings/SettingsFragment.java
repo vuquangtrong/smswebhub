@@ -1,5 +1,8 @@
 package com.trongvq.smswebhub.ui.settings;
 
+import android.content.ClipData;
+import android.content.ClipboardManager;
+import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
 import android.view.LayoutInflater;
@@ -12,6 +15,7 @@ import androidx.annotation.NonNull;
 import androidx.fragment.app.Fragment;
 import androidx.lifecycle.Observer;
 
+import com.trongvq.smswebhub.BuildConfig;
 import com.trongvq.smswebhub.R;
 import com.trongvq.smswebhub.data.DataHandler;
 import com.trongvq.smswebhub.service.SmsWebService;
@@ -20,11 +24,12 @@ public class SettingsFragment extends Fragment {
     public View onCreateView(@NonNull LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
         View root = inflater.inflate(R.layout.fragment_settings, container, false);
 
-        final TextView text_guide = root.findViewById(R.id.text_guide);
-        DataHandler.getInstance().getTextActivationStatus().observe(this, new Observer<String>() {
+        final Button btn_notification_settings = root.findViewById(R.id.btn_notification_settings);
+        btn_notification_settings.setOnClickListener(new View.OnClickListener() {
             @Override
-            public void onChanged(String s) {
-                text_guide.setText(s);
+            public void onClick(View view) {
+                Intent intent = new Intent("android.settings.ACTION_NOTIFICATION_LISTENER_SETTINGS");
+                startActivity(intent);
             }
         });
 
@@ -52,13 +57,36 @@ public class SettingsFragment extends Fragment {
             }
         });
 
-        // check activation
-        if (DataHandler.getInstance().isActivated()) {
-            DataHandler.getInstance().setTextActivationStatus(getString(R.string.license_activated));
-        } else {
-            DataHandler.getInstance().setTextActivationStatus(getString(R.string.license_not_activated));
-        }
+        final TextView log = root.findViewById(R.id.log);
+        log.setText(DataHandler.getInstance().getLog());
+        DataHandler.getInstance().getTextLog().observe(this, new Observer<String>() {
+            @Override
+            public void onChanged(String s) {
+                log.setText(s);
+            }
+        });
 
+        final Button btn_copy_log = root.findViewById(R.id.btn_copy_log);
+        btn_copy_log.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                ClipboardManager clipboardManager = (ClipboardManager) DataHandler.getInstance().getAppContext().getSystemService(Context.CLIPBOARD_SERVICE);
+                if (clipboardManager != null) {
+                    clipboardManager.setPrimaryClip(ClipData.newPlainText("SmsWebHub", DataHandler.getInstance().getLog()));
+                }
+            }
+        });
+
+        final Button btn_clear_log = root.findViewById(R.id.btn_clear_log);
+        btn_clear_log.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                DataHandler.getInstance().clearLog();
+            }
+        });
+
+        final TextView text_version = root.findViewById(R.id.text_version);
+        text_version.setText(String.format("%s: %s", getString(R.string.version), BuildConfig.VERSION_NAME));
         return root;
     }
 }

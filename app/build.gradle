@@ -1,5 +1,9 @@
 apply plugin: 'com.android.application'
 
+static def getVersionCode() {
+    return Integer.valueOf((new Date()).format("YYMMddHHmm", TimeZone.getTimeZone("GMT")))
+}
+
 android {
     compileSdkVersion 29
     buildToolsVersion "29.0.2"
@@ -7,8 +11,8 @@ android {
         applicationId "com.trongvq.smswebhub"
         minSdkVersion 26
         targetSdkVersion 26
-        versionCode 1
-        versionName "2.1.1"
+        versionCode getVersionCode()
+        versionName "${versionCode}"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
     buildTypes {
