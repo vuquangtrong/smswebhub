@@ -21,10 +21,10 @@
     <string name="your_token">Your Token:</string>
     <string name="hint_token">secret</string>
     <string name="preview">Preview:</string>
-    <string name="last_request">Last request:</string>
+    <string name="last_request_from_web">Last request from web:</string>
     <string name="connecting">Connecting…</string>
     <string name="none">none</string>
-    <string name="last_forwarded_data">Last forwarded data:</string>
+    <string name="last_action">Last action:</string>
     <string name="start_service">Start Service</string>
     <string name="stop_service">Stop Service</string>
     <string name="web_hub_token_guide">Enter your secret token, web request must have this token to be transferred to your mobile</string>

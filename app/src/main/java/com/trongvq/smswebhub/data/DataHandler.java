@@ -151,7 +151,7 @@ public class DataHandler {
 
     // WEB HUB URL //
     private static final String PREF_WEB_HUB_URL = PREF + "webhub_url";
-    private String webHubURL = "ws://103.104.119.189:8080";
+    private String webHubURL = "ws://103.104.119.189:8000";
 
     public String getWebHubURL() {
         return webHubURL;
@@ -294,9 +294,13 @@ public class DataHandler {
     }
 
     private void handleWebSocketMessage(String message) {
-        Log.d(TAG, "message = " + message);
         setTextWebHubLastCommand(message);
         responseWebHub("GOT " + message);
+
+        String log = "Received a message from web = " + message;
+        Log.d(TAG, log);
+        appendLog(log);
+
         if (message.startsWith("/sms")) {
             // parse the params
             Uri uri = Uri.parse("http://example.com" + message);
@@ -386,13 +390,13 @@ public class DataHandler {
     }
 
     private void responseWebHub(String message) {
-        try {
-            if (wsClient != null && wsClient.isOpen()) {
-                wsClient.send(message);
-            }
-        } catch (Exception | Error ex) {
-            ex.printStackTrace();
-        }
+//        try {
+//            if (wsClient != null && wsClient.isOpen()) {
+//                wsClient.send(message);
+//            }
+//        } catch (Exception | Error ex) {
+//            ex.printStackTrace();
+//        }
     }
 
     // WEB HUB STATUS //
@@ -473,11 +477,11 @@ public class DataHandler {
     }
 
     public void setSmsRedirectURL(String url) {
-        if (!url.startsWith("http://")) {
-            SmsRedirectURL = "http://" + url;
-        } else {
-            SmsRedirectURL = url;
-        }
+//        if (!url.startsWith("http://") || !url.startsWith("https://")) {
+//            SmsRedirectURL = "http://" + url;
+//        } else {
+        SmsRedirectURL = url;
+//        }
         saveSmsRedirectURL();
     }
 
@@ -622,14 +626,14 @@ public class DataHandler {
     }
 
     // SMS FORWARD //
-    private final MutableLiveData<String> textLastForwardedData = new MutableLiveData<>();
+    private final MutableLiveData<String> textLastForwardedSms = new MutableLiveData<>();
 
-    public LiveData<String> getTextLastForwardedData() {
-        return textLastForwardedData;
+    public LiveData<String> getTextLastForwardedSms() {
+        return textLastForwardedSms;
     }
 
-    private void setTextLastForwardedData(String text) {
-        textLastForwardedData.postValue(text);
+    private void setTextLastForwardedSms(String text) {
+        textLastForwardedSms.postValue(text + "\n");
     }
 
     public void forwardSMS(final String sender, final String content) {
@@ -650,16 +654,24 @@ public class DataHandler {
                 new Response.Listener<String>() {
                     @Override
                     public void onResponse(String response) {
-                        Log.i(TAG, "Message forwarded! " + response + " " + message);
-                        responseWebHub("Message forwarded! " + response + " " + message);
-                        setTextLastForwardedData(message);
+                        String log = "Message forwarded!\n" + "Web response: " + response + "\n" + "for request: " + SmsRedirectURL + "?" + message;
+                        Log.i(TAG, log);
+                        responseWebHub(log);
+                        setTextLastForwardedSms(log);
+                        DataHandler.getInstance().appendLog(log);
                     }
                 },
                 new Response.ErrorListener() {
                     @Override
                     public void onErrorResponse(VolleyError error) {
-                        Log.e(TAG, "Cannot forward SMS content! " + error.toString() + " " + message);
-                        responseWebHub("Cannot forward SMS content! " + error.toString() + " " + message);
+                        String log = "Cannot forward SMS content!\n" + "Web response: " +
+                                error.toString() + "\n" +
+                                error.getMessage() + "\n" +
+                                "for request: " + SmsRedirectURL + "?" + message;
+                        Log.i(TAG, log);
+                        responseWebHub(log);
+                        setTextLastForwardedSms(log);
+                        DataHandler.getInstance().appendLog(log);
                     }
                 }
         ) {
@@ -675,7 +687,7 @@ public class DataHandler {
         };
 
         // Add the request to the RequestQueue.
-        Log.d(TAG, "insert SMS to queue");
+        Log.d(TAG, "insert SMS to queue: " + stringRequest.toString());
         queue.add(stringRequest);
     }
 
@@ -931,11 +943,11 @@ public class DataHandler {
     }
 
     public void setNotiRedirectURL(String url) {
-        if (!url.startsWith("http://")) {
-            NotiRedirectURL = "http://" + url;
-        } else {
-            NotiRedirectURL = url;
-        }
+//        if (!url.startsWith("http://") || !url.startsWith("https://")) {
+//            NotiRedirectURL = "http://" + url;
+//        } else {
+        NotiRedirectURL = url;
+//        }
         saveNotiRedirectURL();
     }
 
@@ -1105,6 +1117,16 @@ public class DataHandler {
     }
 
     // NOTIFICATION FORWARD //
+    private final MutableLiveData<String> textLastForwardedNotification = new MutableLiveData<>();
+
+    public LiveData<String> getTextLastForwardedNotification() {
+        return textLastForwardedNotification;
+    }
+
+    private void setTextLastForwardedNotification(String text) {
+        textLastForwardedNotification.postValue(text + "\n");
+    }
+
     public void forwardNotification(final String packageName, long postTime, Notification notification) {
         final Date date = new Date(postTime);
         final SimpleDateFormat dateFormat = new SimpleDateFormat("yyyyMMdd_hhmmss", Locale.getDefault());
@@ -1129,7 +1151,6 @@ public class DataHandler {
                 NotiPrefixToken + "=" + NotiToken;
 
 
-
         // Instantiate the RequestQueue.
         RequestQueue queue = Volley.newRequestQueue(appContext);
 
@@ -1140,16 +1161,24 @@ public class DataHandler {
                 new Response.Listener<String>() {
                     @Override
                     public void onResponse(String response) {
-                        Log.i(TAG, "Notification forwarded! " + response + " " + message);
-                        responseWebHub("Notification forwarded! " + response + " " + message);
-                        setTextLastForwardedData(message);
+                        String log = "Notification forwarded!\n" + "Web response: " + response + "\n" + "for request: " + NotiRedirectURL + "?" + message;
+                        Log.i(TAG, log);
+                        responseWebHub(log);
+                        setTextLastForwardedNotification(log);
+                        DataHandler.getInstance().appendLog(log);
                     }
                 },
                 new Response.ErrorListener() {
                     @Override
                     public void onErrorResponse(VolleyError error) {
-                        Log.e(TAG, "Cannot forward Notification content! " + error.toString() + " " + message);
-                        responseWebHub("Cannot forward Notification content! " + error.toString() + " " + message);
+                        String log = "Can not forward Notification content!\n" + "Web response: " +
+                                error.toString() + "\n" +
+                                error.getMessage() + "\n" +
+                                "for request: " + NotiRedirectURL + "?" + message;
+                        Log.i(TAG, log);
+                        responseWebHub(log);
+                        setTextLastForwardedNotification(log);
+                        DataHandler.getInstance().appendLog(log);
                     }
                 }
         ) {
@@ -1166,7 +1195,7 @@ public class DataHandler {
         };
 
         // Add the request to the RequestQueue.
-        Log.d(TAG, "insert Notification to queue");
+        Log.d(TAG, "insert Notification to queue: " + stringRequest.toString());
         queue.add(stringRequest);
     }
 

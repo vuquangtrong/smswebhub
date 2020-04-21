@@ -59,7 +59,7 @@ public class SmsForwardFragment extends Fragment {
         updatePreview();
 
         final TextView text_last_data = root.findViewById(R.id.text_last_data);
-        DataHandler.getInstance().getTextLastForwardedData().observe(this, new Observer<String>() {
+        DataHandler.getInstance().getTextLastForwardedSms().observe(getViewLifecycleOwner(), new Observer<String>() {
             @Override
             public void onChanged(String s) {
                 text_last_data.setText(s);

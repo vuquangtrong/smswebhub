@@ -3,7 +3,7 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:paddingTop="8dp">
+    android:paddingBottom="50dp">
 
     <TextView
         android:id="@+id/text_guide"
@@ -27,6 +27,7 @@
         android:autofillHints=""
         android:hint="@string/url_hint"
         android:inputType="textUri"
+        android:paddingTop="0dp"
         android:textAlignment="center"
         android:textColor="@android:color/holo_blue_dark"
         android:textSize="15sp"
@@ -38,7 +39,6 @@
         android:id="@+id/btn_connect"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="16dp"
         android:text="@string/connect"
         android:textAllCaps="false"
         app:layout_constraintEnd_toEndOf="parent"
@@ -64,11 +64,11 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginStart="8dp"
-
         android:layout_marginEnd="8dp"
         android:autofillHints=""
         android:hint="@string/hint_token"
         android:inputType="textUri"
+        android:paddingTop="0dp"
         android:textAlignment="center"
         android:textColor="@android:color/holo_blue_dark"
         android:textSize="15sp"
@@ -80,7 +80,6 @@
         android:id="@+id/btn_set_token"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="16dp"
         android:text="@string/set"
         android:textAllCaps="false"
         app:layout_constraintEnd_toEndOf="parent"
@@ -92,7 +91,6 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginStart="8dp"
-        android:layout_marginTop="16dp"
         android:layout_marginEnd="8dp"
         android:text="@string/connecting"
         app:layout_constraintEnd_toEndOf="parent"
@@ -104,25 +102,33 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginStart="8dp"
-        android:layout_marginTop="8dp"
         android:layout_marginEnd="8dp"
-        android:text="@string/last_request"
+        android:text="@string/last_request_from_web"
         android:textAlignment="center"
         android:textSize="15sp"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/text_webHubStatus" />
 
-    <TextView
-        android:id="@+id/text_webHubLastCommand"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="8dp"
-        android:layout_marginEnd="8dp"
-        android:text="@string/none"
-        android:textAlignment="center"
-        android:textColor="@android:color/holo_red_dark"
-        android:textSize="15sp"
+    <ScrollView
+        android:id="@+id/scrlLog"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:background="@android:color/background_dark"
+        android:fadeScrollbars="false"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/text_guide3" />
+        app:layout_constraintTop_toBottomOf="@+id/text_guide3">
 
+        <TextView
+            android:id="@+id/text_webHubLastCommand"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:layout_marginEnd="8dp"
+            android:gravity="center_vertical"
+            android:text="@string/none"
+            android:textColor="@android:color/holo_red_dark"
+            android:textSize="15sp" />
+    </ScrollView>
 </androidx.constraintlayout.widget.ConstraintLayout>
