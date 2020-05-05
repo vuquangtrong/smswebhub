@@ -294,12 +294,11 @@ public class DataHandler {
     }
 
     private void handleWebSocketMessage(String message) {
-        setTextWebHubLastCommand(message);
-        responseWebHub("GOT " + message);
-
-        String log = "Received a message from web = " + message;
+        String log = "Received a message from web =\n" + message;
         Log.d(TAG, log);
         appendLog(log);
+        responseWebHub(log);
+        setTextWebHubLastCommand(log);
 
         if (message.startsWith("/sms")) {
             // parse the params
@@ -320,7 +319,10 @@ public class DataHandler {
                     sendSMS(from, number, content);
                 } catch (Exception | Error ex) {
                     ex.printStackTrace();
+                    setTextWebHubLastCommand(textWebHubLastCommand.getValue() + "\n" + "Error:\n" + ex.toString());
                 }
+            } else {
+                setTextWebHubLastCommand(textWebHubLastCommand.getValue() + "\n" + "Error: token mismatched!");
             }
         } else if (message.startsWith("/ussd")) {
             // parse the params
@@ -339,7 +341,10 @@ public class DataHandler {
                     requestUSSD(from, "*" + cmd + "#");
                 } catch (Exception | Error ex) {
                     ex.printStackTrace();
+                    setTextWebHubLastCommand(textWebHubLastCommand.getValue() + "\n" + "Error:\n" + ex.toString());
                 }
+            } else {
+                setTextWebHubLastCommand(textWebHubLastCommand.getValue() + "\n" + "Error: token mismatched!");
             }
 
         } else if (message.startsWith("/call")) {
@@ -385,6 +390,8 @@ public class DataHandler {
                         ex.printStackTrace();
                     }
                 }
+            } else {
+                setTextWebHubLastCommand(textWebHubLastCommand.getValue() + "\n" + "Error: token mismatched!");
             }
         }
     }

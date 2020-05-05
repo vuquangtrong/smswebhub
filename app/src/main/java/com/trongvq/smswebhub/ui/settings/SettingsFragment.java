@@ -50,7 +50,7 @@ public class SettingsFragment extends Fragment {
             }
         });
 
-        DataHandler.getInstance().getTextServerStatus().observe(this, new Observer<String>() {
+        DataHandler.getInstance().getTextServerStatus().observe(getViewLifecycleOwner(), new Observer<String>() {
             @Override
             public void onChanged(String s) {
                 btn_toggle_service.setText(s);
@@ -59,7 +59,7 @@ public class SettingsFragment extends Fragment {
 
         final TextView log = root.findViewById(R.id.log);
         log.setText(DataHandler.getInstance().getLog());
-        DataHandler.getInstance().getTextLog().observe(this, new Observer<String>() {
+        DataHandler.getInstance().getTextLog().observe(getViewLifecycleOwner(), new Observer<String>() {
             @Override
             public void onChanged(String s) {
                 log.setText(s);

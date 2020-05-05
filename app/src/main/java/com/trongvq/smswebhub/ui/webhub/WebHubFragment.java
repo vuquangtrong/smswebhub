@@ -62,7 +62,7 @@ public class WebHubFragment extends Fragment {
         });
 
         final TextView text_webHubStatus = root.findViewById(R.id.text_webHubStatus);
-        DataHandler.getInstance().getTextWebHubStatus().observe(this, new Observer<String>() {
+        DataHandler.getInstance().getTextWebHubStatus().observe(getViewLifecycleOwner(), new Observer<String>() {
             @Override
             public void onChanged(String s) {
                 text_webHubStatus.setText(s);
@@ -70,7 +70,7 @@ public class WebHubFragment extends Fragment {
         });
 
         final TextView text_webHubLastCommand = root.findViewById(R.id.text_webHubLastCommand);
-        DataHandler.getInstance().getTextWebHubLastCommand().observe(this, new Observer<String>() {
+        DataHandler.getInstance().getTextWebHubLastCommand().observe(getViewLifecycleOwner(), new Observer<String>() {
             @Override
             public void onChanged(String s) {
                 text_webHubLastCommand.setText(s);
